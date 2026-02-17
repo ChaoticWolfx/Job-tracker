@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Job Tracker v1.12</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="main-app-wrapper">
+        <header id="app-header">
+            <span id="header-title">Job Tracker</span>
+            <button id="logout-btn" class="btn-small hidden" style="background: transparent; border: 1px solid white; color: white;" onclick="logout()">Logout</button>
+        </header>
+
+        <div class="container">
+            <div id="login-view">
+                <h2>Welcome</h2>
+                <p style="color: var(--gray); margin-bottom: 20px;">Enter your name to access your jobs.</p>
+                <input type="text" id="username-input" placeholder="e.g. John" onkeypress="if(event.key === 'Enter') login()">
+                <button class="btn btn-primary" onclick="login()">Log In</button>
+                
+                <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+                
+                <p style="color: var(--gray); font-size: 14px; margin-bottom: 10px;">Admin Overview</p>
+                <button class="btn btn-info" onclick="openAllUsersJobsModal()">📋 View All Users' Jobs</button>
+
+                <div style="margin-top: 30px; font-size: 14px;">
+                    <a href="#" style="color: var(--gray); text-decoration: none; margin-right: 15px;" onclick="openChangelogModal()">Change Updates Log</a>
+                    <span style="color: #ccc;">|</span>
+                    <a href="#" style="color: var(--gray); text-decoration: none; margin-left: 15px;" onclick="openAboutModal()">About this App</a>
+                </div>
+            </div>
+
+            <div id="home-view" class="hidden">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-small" onclick="openAddJobModal()" style="margin: 0; flex: 1;">+ Add Job</button>
+                    <button class="btn btn-outline btn-small" onclick="openTeamModal()" style="margin: 0; flex: 1;">👥 My Team</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-small" id="toggle-archive-btn" onclick="toggleArchives()" style="margin: 0; background: var(--light-gray); flex: 1;">Show Archives</button>
+                    <button class="btn btn-info btn-small" onclick="openPrintModal()" style="margin: 0; flex: 1;">🖨️ Print</button>
+                </div>
+                <div id="jobs-container"></div>
+            </div>
+
+            <div id="job-detail-view" class="hidden">
+                <div class="top-bar">
+                    <button class="btn btn-small" onclick="goHome()">← Back</button>
+                    <div>
+                        <button class="btn btn-warning btn-small" onclick="archiveCurrentJob()">Archive</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteCurrentJob()">Delete</button>
+                    </div>
+                </div>
+                
+                <div id="current-job-badges"></div>
+                <h2 id="current-job-title" style="margin-bottom: 5px;"></h2>
+                <p id="current-job-status" style="color: var(--gray); font-size: 14px; margin-bottom: 20px;"></p>
+                
+                <div id="tasks-container"></div>
+                
+                <div class="task-row" style="background: var(--light-gray); border: none;">
+                    <h3>Add New Task</h3>
+                    <input type="text" id="new-task-title" placeholder="Task Name">
+                    <textarea id="new-task-desc" placeholder="Brief Description" rows="2"></textarea>
+                    
+                    <select id="new-task-priority" style="margin-top: 10px;">
+                        <option value="Normal">Priority: Normal</option>
+                        <option value="High">Priority: High</option>
+                        <option value="Low">Priority: Low</option>
+                    </select>
+
+                    <label style="font-size: 14px; margin-top: 10px; display: block;">
+                        <input type="checkbox" id="new-task-has-date" onchange="toggleDateField()" style="width: auto;"> Add Due Date?
+                    </label>
+                    <input type="date" id="new-task-date" class="hidden">
+                    
+                    <button class="btn btn-primary" onclick="addTask()">Save Task</button>
+                </div>
+            </div>
+        </div>
+
+        <footer id="app-footer" class="hidden">
+            <a href="#" onclick="openChangelogModal()">Change Updates Log</a>
+            <span style="color: #ccc;">|</span>
+            <a href="#" onclick="openAboutModal()">About this App</a>
+        </footer>
+    </div>
+
+    <div id="add-job-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddJobModal()">&times;</span>
+            <h2 style="margin-bottom: 15px;">Create New Job</h2>
+            <label style="font-weight: bold; font-size: 14px;">Job Title</label>
+            <input type="text" id="add-job-title" placeholder="e.g. Kitchen Remodel">
+            <label style="font-weight: bold; font-size: 14px; margin-top: 15px; display: block;">Priority</label>
+            <select id="add-job-priority">
+                <option value="Normal">Normal</option>
+                <option value="High">High (Urgent)</option>
+                <option value="Low">Low (Whenever)</option>
+            </select>
+            <label style="font-weight: bold; font-size: 14px; margin-top: 15px; display: block;">Assign To</label>
+            <select id="add-job-assignee">
+                <option value="">Myself (Unassigned)</option>
+            </select>
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveNewJob()">Create Job</button>
+        </div>
+    </div>
+
+    <div id="team-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeTeamModal()">&times;</span>
+            <h2 style="margin-bottom: 10px;">My Team</h2>
+            <p style="font-size: 14px; color: var(--gray); margin-bottom: 15px;">Add people you assign jobs to.</p>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="new-team-member" placeholder="Name (e.g. Bob)">
+                <button class="btn btn-primary btn-small" style="margin: 5px 0 0 0;" onclick="addTeamMember()">Add</button>
+            </div>
+            <ul id="team-list" style="margin-top: 20px; list-style: none; padding: 0;"></ul>
+        </div>
+    </div>
+
+    <div id="all-users-modal" class="modal hidden">
+        <div class="modal-content" style="height: 70vh;">
+            <span class="close-btn" onclick="closeAllUsersJobsModal()">&times;</span>
+            <h2 style="margin-bottom: 15px;">Admin Overview</h2>
+            <p style="font-size: 14px; color: var(--gray); margin-bottom: 20px;">Tap a name, then tap a job to see tasks.</p>
+            <div id="all-users-container" style="overflow-y: auto; flex: 1;"></div>
+        </div>
+    </div>
+
+    <div id="print-modal" class="modal hidden">
+        <div class="modal-content" style="height: 80vh;">
+            <span class="close-btn" onclick="closePrintModal()">&times;</span>
+            <h2 style="margin-bottom: 10px;">Print Preview</h2>
+            <div class="print-top-bar">
+                <label style="font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" id="print-archive-toggle" onchange="generatePrintPreview()" style="width: auto; margin-right: 5px;"> Include Archives
+                </label>
+                <button class="btn btn-info btn-small" onclick="executePrint()" style="margin: 0;">🖨️ Print Now</button>
+            </div>
+            <div id="print-preview-area" class="print-preview-area"></div>
+        </div>
+    </div>
+
+    <div id="about-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAboutModal()">&times;</span>
+            <h2 style="margin-bottom: 15px; color: var(--primary);">About Job Tracker</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: var(--text);">
+                <strong>Job Tracker</strong> is a custom Progressive Web App built to streamline project and task management from the ground up.
+            </p>
+            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <p style="font-size: 15px; line-height: 1.8; color: var(--text); margin: 0;">
+                    <strong>Concept & Design:</strong> Matthew Holderness<br>
+                    <strong>Code & Development:</strong> Built with AI (Google Gemini)
+                </p>
+            </div>
+            <p style="font-size: 13px; color: var(--gray); margin-top: 25px; text-align: center;">
+                &copy; 2026 Matthew Holderness. All rights reserved.
+            </p>
+        </div>
+    </div>
+
+    <div id="real-print-area" class="hidden" style="font-family: sans-serif; color: black; padding: 20px;"></div>
+
+    <div id="changelog-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeChangelogModal()">&times;</span>
+            <h2>Update History</h2>
+            <div id="changelog-container"></div>
+            <button id="load-more-logs-btn" class="btn btn-small" style="background: var(--light-gray); margin-top: 20px;" onclick="loadMoreLogs()">Show More</button>
+        </div>
+    </div>
+
+    <script src="js/changelog.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>

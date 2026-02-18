@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Job Tracker v2.3</title>
+    <title>Job Tracker v2.4</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -73,8 +73,7 @@
                     <button class="btn btn-outline btn-small" onclick="openTeamModal()" style="margin: 0; flex: 1;">👥 My Team</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button id="archive-job-btn" class="btn btn-warning btn-small" onclick="archiveCurrentJob()">Archive</button>
-
+                    <button class="btn btn-small" id="toggle-archive-btn" onclick="toggleArchives()" style="margin: 0; background: var(--light-gray); flex: 1; border: 1px solid var(--border-color); color: var(--text);">Show Archives</button>
                     <button class="btn btn-info btn-small" onclick="openPrintModal()" style="margin: 0; flex: 1;">🖨️ Print List</button>
                 </div>
 
@@ -260,6 +259,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js?v=phase3"></script>
+    <script type="module" src="js/app.js?v=phase3-final"></script>
 </body>
 </html>

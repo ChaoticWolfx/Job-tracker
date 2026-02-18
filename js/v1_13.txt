@@ -1,0 +1,5 @@
+v1.13 Update
+- Restored the dynamic Changlog folder system now that the app is hosted on a live server.
+- Team Roles: You can now assign specific job titles/occupations to your team members.
+- Task Assignments: You can now assign specific individuals to handle individual tasks inside a broader job.
+- Updated print menus and admin screens to display the new task-level assignees.

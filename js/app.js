@@ -241,6 +241,7 @@ function getAssigneeText(name) {
 }
 
 function goHome() {
+    currentJobId = null;
     document.getElementById('home-view').classList.remove('hidden');
     document.getElementById('job-detail-view').classList.add('hidden');
     renderJobs();
@@ -307,18 +308,14 @@ function populateDropdowns() {
 async function moveJob(jobId, direction) {
     const index = jobs.findIndex(j => j.id === jobId);
     if (index < 0) return;
-    
     let targetIndex = -1;
     if (direction === 'up') {
         for(let i = index - 1; i >= 0; i--) { if (jobs[i].isArchived === jobs[index].isArchived) { targetIndex = i; break; } }
     } else {
         for(let i = index + 1; i < jobs.length; i++) { if (jobs[i].isArchived === jobs[index].isArchived) { targetIndex = i; break; } }
     }
-    
     if (targetIndex !== -1) {
-        const temp = jobs[index];
-        jobs[index] = jobs[targetIndex];
-        jobs[targetIndex] = temp;
+        const temp = jobs[index]; jobs[index] = jobs[targetIndex]; jobs[targetIndex] = temp;
         renderJobs(); await saveData(); 
     }
 }
@@ -326,7 +323,6 @@ async function moveJob(jobId, direction) {
 async function moveTask(taskId, direction) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
-    
     if (direction === 'up' && taskIndex > 0) {
         const temp = jobs[jobIndex].tasks[taskIndex];
         jobs[jobIndex].tasks[taskIndex] = jobs[jobIndex].tasks[taskIndex-1];
@@ -339,22 +335,16 @@ async function moveTask(taskId, direction) {
     renderTasks(); await saveData(); 
 }
 
-// --- NEW: ROBUST NATIVE CALENDAR LINK GENERATOR ---
+// --- CALENDAR LOGIC (ROBUST NATIVE INTENT) ---
 function createCalendarLink(title, startDate, startTime, description) {
-    let startDateTime = '';
-    let endDateTime = '';
-    let startTimeMs = 0;
-    let endTimeMs = 0;
+    let startDateTime = '', endDateTime = '', startTimeMs = 0, endTimeMs = 0;
 
     if (startDate && startTime) {
         const [year, month, day] = startDate.split('-');
         const [hour, minute] = startTime.split(':');
         const localDate = new Date(year, month - 1, day, hour, minute);
         const localEndDate = new Date(localDate.getTime() + (60 * 60 * 1000));
-        
-        startTimeMs = localDate.getTime();
-        endTimeMs = localEndDate.getTime();
-        
+        startTimeMs = localDate.getTime(); endTimeMs = localEndDate.getTime();
         startDateTime = localDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
         endDateTime = localEndDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
     } else if (startDate) {
@@ -362,10 +352,7 @@ function createCalendarLink(title, startDate, startTime, description) {
         const localDate = new Date(year, month - 1, day);
         const endDate = new Date(year, month - 1, day);
         endDate.setDate(endDate.getDate() + 1);
-        
-        startTimeMs = localDate.getTime();
-        endTimeMs = endDate.getTime();
-        
+        startTimeMs = localDate.getTime(); endTimeMs = endDate.getTime();
         startDateTime = `${year}${month}${day}`;
         const endYear = endDate.getFullYear();
         const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
@@ -373,9 +360,7 @@ function createCalendarLink(title, startDate, startTime, description) {
         endDateTime = `${endYear}${endMonth}${endDay}`;
     } else {
         const today = new Date();
-        startTimeMs = today.getTime();
-        endTimeMs = startTimeMs + (60 * 60 * 1000);
-        
+        startTimeMs = today.getTime(); endTimeMs = startTimeMs + (60 * 60 * 1000);
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
@@ -384,20 +369,14 @@ function createCalendarLink(title, startDate, startTime, description) {
     }
 
     const safeTitle = encodeURIComponent("Job Tracker: " + title);
-    const safeDesc = encodeURIComponent(description || "Added via Job Tracker App");
-
+    const safeDesc = encodeURIComponent(description || "");
     const isAndroid = /Android/i.test(navigator.userAgent);
 
     if (isAndroid) {
-        // Build the intent URL
         const intentUrl = `intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.dir/event;S.title=${safeTitle};S.description=${safeDesc};l.beginTime=${startTimeMs};l.endTime=${endTimeMs};end;`;
-        
-        // Create an invisible link and click it to bypass pop-up blockers
         const anchor = document.createElement('a');
-        anchor.href = intentUrl;
-        anchor.style.display = 'none';
-        document.body.appendChild(anchor);
-        anchor.click();
+        anchor.href = intentUrl; anchor.style.display = 'none';
+        document.body.appendChild(anchor); anchor.click();
         setTimeout(() => document.body.removeChild(anchor), 100);
     } else {
         const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${safeTitle}&dates=${startDateTime}/${endDateTime}&details=${safeDesc}`;
@@ -405,21 +384,27 @@ function createCalendarLink(title, startDate, startTime, description) {
     }
 }
 
+// Calendar pushers for the creation forms
 function openJobCalendarTemplate() {
     const title = document.getElementById('add-job-title').value.trim();
-    const date = document.getElementById('add-job-date').value;
-    const time = document.getElementById('add-job-time').value;
     if (!title) return alert("Please enter a Job Title first!");
-    createCalendarLink(title, date, time, "Job Start Date");
+    createCalendarLink(title, document.getElementById('add-job-date').value, document.getElementById('add-job-time').value, "Job Start Date");
 }
-
 function openTaskCalendarTemplate() {
     const title = document.getElementById('new-task-title').value.trim();
-    const desc = document.getElementById('new-task-desc').value.trim();
-    const date = document.getElementById('new-task-date').value;
-    const time = document.getElementById('new-task-time').value;
     if (!title) return alert("Please enter a Task Name first!");
-    createCalendarLink(title, date, time, desc);
+    createCalendarLink(title, document.getElementById('new-task-date').value, document.getElementById('new-task-time').value, document.getElementById('new-task-desc').value);
+}
+
+// Calendar pushers for existing (saved) items
+function pushSavedJobToCalendar() {
+    const job = jobs.find(j => j.id === currentJobId);
+    if(job) createCalendarLink(job.title, job.startDate, job.startTime, "Job Start Date");
+}
+function pushSavedTaskToCalendar(taskId) {
+    const job = jobs.find(j => j.id === currentJobId);
+    const task = job.tasks.find(t => t.id === taskId);
+    if(task) createCalendarLink(task.title, task.dueDate, task.dueTime, task.desc);
 }
 
 // --- Jobs Logic ---
@@ -453,8 +438,7 @@ function renderJobs() {
         if(job.startDate) badges += `<span class="badge" style="background:var(--light-gray); color:var(--text); border:1px solid var(--border-color);">📅 Start: ${job.startDate} ${job.startTime ? job.startTime : ''}</span>`;
 
         const card = document.createElement('div');
-        card.className = 'card';
-        card.onclick = () => viewJob(job.id);
+        card.className = 'card'; card.onclick = () => viewJob(job.id);
         card.style.opacity = job.isArchived ? '0.7' : '1';
         
         card.innerHTML = `
@@ -493,68 +477,13 @@ async function saveNewJob() {
     if (!title) { alert("Please enter a job title."); return; }
 
     jobs.push({ 
-        id: Date.now(), 
-        title: title, 
-        priority: priority, 
-        assignedTo: assignee, 
-        startDate: startDate,
-        startTime: startTime,
-        tasks: [], 
-        isArchived: false, 
-        isShared: false 
+        id: Date.now(), title: title, priority: priority, assignedTo: assignee, 
+        startDate: startDate, startTime: startTime, tasks: [], isArchived: false, isShared: false 
     });
     
     if(viewingArchives) { viewingArchives = false; document.getElementById('toggle-archive-btn').innerText = "Show Archives"; document.getElementById('toggle-archive-btn').style.background = "var(--light-gray)"; }
     
     closeAddJobModal(); renderJobs(); await saveData(); 
-}
-
-// --- SHARE LINK LOGIC ---
-async function shareCurrentJob() {
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    if(jobIndex < 0) return;
-    
-    jobs[jobIndex].isShared = true;
-    await saveData(); 
-    
-    const firebaseId = jobs[jobIndex].firebaseId || jobs[jobIndex].id.toString();
-    const shareUrl = window.location.origin + window.location.pathname + '?job=' + firebaseId;
-    
-    try {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("🔗 Link copied to clipboard! Anyone with this link can view a read-only version of this job.");
-    } catch (err) {
-        alert("Share this link to grant Read-Only access: \n\n" + shareUrl);
-    }
-}
-
-async function deleteJobFromHome(jobId) {
-    if(confirm("PERMANENTLY delete this job and all tasks?")) {
-        const job = jobs.find(j => j.id === jobId);
-        const docId = job.firebaseId || job.id.toString();
-        await deleteDoc(doc(db, "jobs", docId)); 
-        jobs = jobs.filter(j => j.id !== jobId); 
-        renderJobs();
-    }
-}
-
-async function archiveCurrentJob() {
-    if(!confirm("Move this job to the Archives?")) return; 
-    
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; 
-    goHome(); 
-    await saveData();
-}
-
-async function deleteCurrentJob() {
-    if(confirm("PERMANENTLY delete this job?")) {
-        const job = jobs.find(j => j.id === currentJobId);
-        const docId = job.firebaseId || job.id.toString();
-        await deleteDoc(doc(db, "jobs", docId)); 
-        jobs = jobs.filter(j => j.id !== currentJobId); 
-        goHome();
-    }
 }
 
 // --- Tasks Logic ---
@@ -566,6 +495,12 @@ function renderTasks() {
     document.getElementById('current-job-title').innerText = job.title || 'Untitled';
     document.getElementById('current-job-status').innerText = job.isArchived ? "Status: Archived" : "Status: Active";
     
+    // Check if the job itself has a date, inject a calendar button at the top
+    const calAction = document.getElementById('current-job-calendar-action');
+    if (job.startDate) {
+        calAction.innerHTML = `<button class="btn-outline btn-small" style="border-color:#4285F4; color:#4285F4; margin:0;" onclick="pushSavedJobToCalendar()">📅 Sync Job Start to Calendar</button>`;
+    } else { calAction.innerHTML = ''; }
+
     let topBadges = '';
     if(job.priority === 'High') topBadges += `<span class="badge badge-High">High Priority</span> `;
     if(job.priority === 'Low') topBadges += `<span class="badge badge-Low">Low Priority</span> `;
@@ -577,6 +512,7 @@ function renderTasks() {
 
     job.tasks.forEach((task, index) => {
         let dateDisplay = '';
+        let syncBtnDisplay = '';
         if (task.dueDate) {
             const [year, month, day] = task.dueDate.split('-');
             const taskDate = new Date(year, month - 1, day);
@@ -585,6 +521,8 @@ function renderTasks() {
             dateDisplay = `<div class="${isPastDue ? 'past-due' : ''}" style="margin-top: 5px; font-size: 14px;">
                 <span style="display:inline-block; margin-right:5px;">📅</span>Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''} ${isPastDue ? '(Past Due!)' : ''}
             </div>`;
+            // Add a calendar sync button directly to the saved task
+            syncBtnDisplay = `<button class="btn-small" style="background:transparent; border:1px solid #4285F4; color:#4285F4; margin-top:8px; padding: 4px 8px; font-size: 12px;" onclick="pushSavedTaskToCalendar(${task.id})">📅 Sync Task to Calendar</button>`;
         }
 
         let badgeDisplay = '';
@@ -606,6 +544,7 @@ function renderTasks() {
             </div>
             ${task.desc ? `<p style="color: var(--gray); font-size: 15px;">${task.desc}</p>` : ''}
             ${dateDisplay}
+            ${syncBtnDisplay}
             <select class="status-select" style="margin-top: 10px;" onchange="updateTaskStatus(${task.id}, this.value)">
                 <option value="Not Started" ${task.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
                 <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
@@ -628,7 +567,6 @@ async function addTask() {
     if (!title) return alert("Enter a task name.");
     
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    
     jobs[jobIndex].tasks.push({ 
         id: Date.now(), title: title, desc: desc, priority: priority, assignedTo: assignee, status: 'Not Started', notes: '', dueDate: dueDate, dueTime: dueTime
     });
@@ -663,210 +601,162 @@ async function deleteTask(taskId) {
     }
 }
 
-// --- ADMIN USER MANAGEMENT ---
+// --- ADMIN & SHARE ---
+async function shareCurrentJob() {
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
+    if(jobIndex < 0) return;
+    jobs[jobIndex].isShared = true; await saveData(); 
+    const firebaseId = jobs[jobIndex].firebaseId || jobs[jobIndex].id.toString();
+    const shareUrl = window.location.origin + window.location.pathname + '?job=' + firebaseId;
+    try { await navigator.clipboard.writeText(shareUrl); alert("🔗 Link copied to clipboard!"); } 
+    catch (err) { alert("Share this link: \n\n" + shareUrl); }
+}
+
+async function deleteJobFromHome(jobId) {
+    if(confirm("PERMANENTLY delete this job?")) {
+        const job = jobs.find(j => j.id === jobId);
+        const docId = job.firebaseId || job.id.toString();
+        await deleteDoc(doc(db, "jobs", docId)); 
+        jobs = jobs.filter(j => j.id !== jobId); renderJobs();
+    }
+}
+
+async function archiveCurrentJob() {
+    if(!confirm("Move this job to the Archives?")) return; 
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
+    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; 
+    goHome(); await saveData();
+}
+
+async function deleteCurrentJob() {
+    if(confirm("PERMANENTLY delete this job?")) {
+        const job = jobs.find(j => j.id === currentJobId);
+        const docId = job.firebaseId || job.id.toString();
+        await deleteDoc(doc(db, "jobs", docId)); 
+        jobs = jobs.filter(j => j.id !== currentJobId); goHome();
+    }
+}
+
 async function banUser(uid, userName) {
-    if(!confirm(`Ban ${userName}? They will be immediately locked out of the app.`)) return;
+    if(!confirm(`Ban ${userName}?`)) return;
     await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName });
-    alert(`${userName} has been banned.`);
-    openAllUsersJobsModal(); 
+    alert(`${userName} has been banned.`); openAllUsersJobsModal(); 
 }
 
 async function unbanUser(uid, userName) {
     if(!confirm(`Unban ${userName}?`)) return;
     await deleteDoc(doc(db, "banned_users", uid));
-    alert(`${userName} has been unbanned.`);
-    openAllUsersJobsModal(); 
+    alert(`${userName} has been unbanned.`); openAllUsersJobsModal(); 
 }
 
 async function deleteUserData(uid, userName) {
-    if(!confirm(`⚠️ PERMANENTLY delete ALL jobs and team data for ${userName}? This CANNOT be undone.`)) return;
-    
+    if(!confirm(`⚠️ PERMANENTLY delete ALL data for ${userName}?`)) return;
     const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", uid));
-    const snapJobs = await getDocs(qJobs);
-    snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id)));
-    
+    const snapJobs = await getDocs(qJobs); snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id)));
     const qTeam = query(collection(db, "team"), where("ownerUid", "==", uid));
-    const snapTeam = await getDocs(qTeam);
-    snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id)));
-    
-    alert(`All data for ${userName} has been permanently wiped from the cloud.`);
-    openAllUsersJobsModal(); 
+    const snapTeam = await getDocs(qTeam); snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id)));
+    alert(`Data wiped.`); openAllUsersJobsModal(); 
 }
 
-// --- CLOUD ADMIN OVERVIEW LOGIC WITH PROFILES & BANNING ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
-    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company users and jobs...</p>';
+    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching...</p>';
     document.getElementById('all-users-modal').classList.remove('hidden');
-
     try {
         const bannedSnap = await getDocs(collection(db, "banned_users"));
-        let bannedUids = [];
-        bannedSnap.forEach(doc => bannedUids.push(doc.id));
-
+        let bannedUids = []; bannedSnap.forEach(doc => bannedUids.push(doc.id));
         const usersSnap = await getDocs(collection(db, "users"));
-        let allUsers = [];
-        usersSnap.forEach(doc => allUsers.push(doc.data()));
-
+        let allUsers = []; usersSnap.forEach(doc => allUsers.push(doc.data()));
         const jobsSnap = await getDocs(collection(db, "jobs"));
-        let jobsByUid = {};
-        adminViewJobs = []; 
-        
+        let jobsByUid = {}; adminViewJobs = []; 
         jobsSnap.forEach((doc) => {
-            const data = doc.data();
-            data.firebaseId = doc.id; 
-            adminViewJobs.push(data); 
-
+            const data = doc.data(); data.firebaseId = doc.id; adminViewJobs.push(data); 
             const uid = data.ownerUid;
-            if(uid) {
-                if(!jobsByUid[uid]) jobsByUid[uid] = [];
-                jobsByUid[uid].push(data);
-            }
+            if(uid) { if(!jobsByUid[uid]) jobsByUid[uid] = []; jobsByUid[uid].push(data); }
         });
-
         container.innerHTML = '';
-        if (allUsers.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--gray); margin-top: 20px;">No users found. Log out and log back in to register your profile!</p>';
-            return;
-        }
-
+        if (allUsers.length === 0) return container.innerHTML = '<p>No users found.</p>';
         allUsers.forEach((userData) => {
             const userName = userData.name || "Unknown User";
             const userEmail = userData.email || "No email";
             const userUid = userData.uid;
-            const userPhoto = userData.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=random`;
-            
+            const userPhoto = userData.photoURL || `https://ui-avatars.com/api/?name=${userName}`;
             const userJobs = jobsByUid[userUid] || [];
             const activeJobs = userJobs.filter(j => !j.isArchived);
-            
             const isBanned = bannedUids.includes(userUid);
-            const banButtonHtml = isBanned ? 
-                `<button class="btn-success btn-small" style="padding: 4px 10px;" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>` : 
-                `<button class="btn-warning btn-small" style="padding: 4px 10px;" onclick="banUser('${userUid}', '${userName}')">Ban</button>`;
+            const banBtn = isBanned ? `<button class="btn-success btn-small" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>` : `<button class="btn-warning btn-small" onclick="banUser('${userUid}', '${userName}')">Ban</button>`;
 
-            const userDiv = document.createElement('div');
-            userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
-            
-            const userHeader = document.createElement('div');
-            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.display = 'flex'; userHeader.style.flexDirection = 'column'; userHeader.style.gap = '10px';
-            
+            const userDiv = document.createElement('div'); userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
+            const userHeader = document.createElement('div'); userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px';
             userHeader.innerHTML = `
                 <div style="display: flex; justify-content: space-between; cursor: pointer; align-items: center;" id="toggle-${userUid}">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <img src="${userPhoto}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
-                        <div style="line-height: 1.2;">
-                            <strong style="font-size: 15px;">${userName}</strong><br>
-                            <span style="font-size: 12px; color: var(--gray); font-weight: normal;">${userEmail}</span>
-                        </div>
-                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;"><img src="${userPhoto}" style="width: 32px; border-radius: 50%;"><div><strong>${userName}</strong><br><span style="font-size: 12px; color: var(--gray);">${userEmail}</span></div></div>
                     <span style="color: var(--primary); font-weight: bold;">${activeJobs.length} Active ▼</span>
                 </div>
-                <div style="display: flex; gap: 5px; justify-content: flex-end; padding-top: 5px; border-top: 1px solid var(--border-color);">
-                    ${banButtonHtml}
-                    <button class="btn-danger btn-small" style="padding: 4px 10px;" onclick="deleteUserData('${userUid}', '${userName}')">Wipe Data</button>
-                </div>
+                <div style="display: flex; gap: 5px; justify-content: flex-end; padding-top: 5px; border-top: 1px solid var(--border-color);">${banBtn}<button class="btn-danger btn-small" onclick="deleteUserData('${userUid}', '${userName}')">Wipe</button></div>
             `;
-            
-            const jobsListContainer = document.createElement('div');
-            jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'var(--card-bg)';
-            
-            if (activeJobs.length === 0) {
-                jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">User has not created any active jobs.</em></div>';
-            } else {
-                activeJobs.forEach(job => {
-                    const tasks = job.tasks || [];
-                    const completed = tasks.filter(t => t.status === 'Complete').length;
-                    const total = tasks.length;
-                    const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid var(--border-color)';
-                    
-                    const jobHeader = document.createElement('div');
-                    jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between'; jobHeader.style.alignItems = 'center';
-                    
-                    jobHeader.innerHTML = `
-                        <div style="flex: 1;">
-                            <strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>
-                        </div>
-                        <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
-                    `;
-                    
-                    const taskList = document.createElement('div');
-                    taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = 'var(--bg-color)';
-                    
-                    if(total === 0) { taskList.innerHTML = '<em style="color:var(--gray); font-size:13px;">No tasks.</em>'; } 
-                    else {
-                        let tHtml = '<ul style="margin:0; padding-left:15px; font-size:14px; line-height:1.6;">';
-                        tasks.forEach(t => {
-                            let color = t.status === 'Complete' ? 'var(--success)' : (t.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
-                            let asgn = t.assignedTo ? ` (👤 ${t.assignedTo})` : '';
-                            tHtml += `<li>${t.title}${asgn} <span style="color:${color}; font-size:12px;">[${t.status}]</span></li>`;
-                        });
-                        tHtml += '</ul>'; taskList.innerHTML = tHtml;
-                    }
-
-                    jobHeader.onclick = (e) => {
-                        e.stopPropagation();
-                        taskList.style.display = taskList.style.display === 'none' ? 'block' : 'none';
-                    };
-                    jobRow.appendChild(jobHeader); jobRow.appendChild(taskList); jobsListContainer.appendChild(jobRow);
-                });
-            }
-            
-            userHeader.querySelector(`#toggle-${userUid}`).onclick = () => {
-                jobsListContainer.style.display = jobsListContainer.style.display === 'none' ? 'block' : 'none';
-            };
-            userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
+            const listCont = document.createElement('div'); listCont.style.display = 'none';
+            activeJobs.forEach(job => {
+                const row = document.createElement('div'); row.style.padding = '10px 15px'; row.style.borderBottom = '1px solid var(--border-color)';
+                row.innerHTML = `<strong>${job.title}</strong> <button class="btn-primary btn-small" style="float:right;" onclick="cloneJob('${job.firebaseId}')">📥 Import</button>`;
+                listCont.appendChild(row);
+            });
+            userHeader.querySelector(`#toggle-${userUid}`).onclick = () => listCont.style.display = listCont.style.display === 'none' ? 'block' : 'none';
+            userDiv.appendChild(userHeader); userDiv.appendChild(listCont); container.appendChild(userDiv);
         });
-    } catch (e) {
-        container.innerHTML = `<p style="color: red; text-align: center; margin-top: 20px;">Error connecting to Cloud: ${e.message}</p>`;
-    }
+    } catch (e) { container.innerHTML = `<p style="color:red;">Error: ${e.message}</p>`; }
 }
 function closeAllUsersJobsModal() { document.getElementById('all-users-modal').classList.add('hidden'); }
 
-// --- THE IMPORT/CLONE FUNCTION ---
 async function cloneJob(firebaseId) {
     const originalJob = adminViewJobs.find(j => j.firebaseId === firebaseId);
-    if(!originalJob) return;
-
-    if(!confirm(`Import "${originalJob.title || 'Untitled'}" to your own job list?`)) return;
-
+    if(!originalJob || !confirm(`Import "${originalJob.title}"?`)) return;
     const newJob = JSON.parse(JSON.stringify(originalJob));
-    
-    newJob.id = Date.now();
-    newJob.firebaseId = newJob.id.toString(); 
-    newJob.owner = currentUserName;
-    newJob.ownerUid = currentUserUid;
-    newJob.title = (newJob.title || 'Untitled') + " (Imported)";
-    newJob.isShared = false; 
-    
-    if(newJob.tasks) {
-        newJob.tasks.forEach((t, i) => {
-            t.id = Date.now() + i + 1;
-        });
-    }
-
-    jobs.push(newJob);
-    
-    alert(`"${newJob.title}" imported successfully! You can find it on your home screen.`);
-    renderJobs();
-    await saveData();
+    newJob.id = Date.now(); newJob.firebaseId = newJob.id.toString(); 
+    newJob.owner = currentUserName; newJob.ownerUid = currentUserUid;
+    newJob.title += " (Imported)"; newJob.isShared = false; 
+    if(newJob.tasks) newJob.tasks.forEach((t, i) => t.id = Date.now() + i + 1);
+    jobs.push(newJob); alert(`Imported!`); renderJobs(); await saveData();
 }
 
-// --- PRINT LOGIC ---
+// --- CONTEXT-AWARE PRINT LOGIC ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
-    document.getElementById('print-archive-toggle').checked = false; 
     
-    const container = document.getElementById('print-job-selection');
+    // Check if we are viewing a job or the home screen
+    const isJobView = currentJobId !== null;
+    
+    // Update Modal UI based on context
+    document.getElementById('print-modal-title').innerText = isJobView ? "Print Task Checklist" : "Print Job List";
+    document.getElementById('print-archive-label').style.display = isJobView ? 'none' : 'block';
+    
+    const container = document.getElementById('print-item-selection');
     container.innerHTML = '';
-    const includeArchives = document.getElementById('print-archive-toggle').checked;
     
-    jobs.forEach(job => {
-        if (!includeArchives && job.isArchived) return;
-        container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
-            <input type="checkbox" class="print-job-cb" value="${job.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
-            ${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}
-        </label>`;
-    });
+    if (isJobView) {
+        // Render TASK checkboxes
+        const job = jobs.find(j => j.id === currentJobId);
+        if(!job.tasks || job.tasks.length === 0) {
+            container.innerHTML = '<p style="color:var(--gray);">No tasks to print.</p>';
+        } else {
+            job.tasks.forEach(task => {
+                container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
+                    <input type="checkbox" class="print-item-cb" value="${task.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
+                    ${task.title}
+                </label>`;
+            });
+        }
+    } else {
+        // Render JOB checkboxes
+        const includeArchives = document.getElementById('print-archive-toggle').checked;
+        jobs.forEach(job => {
+            if (!includeArchives && job.isArchived) return;
+            container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
+                <input type="checkbox" class="print-item-cb" value="${job.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
+                ${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}
+            </label>`;
+        });
+    }
 
     generatePrintPreview(); 
 }
@@ -874,177 +764,108 @@ function openPrintModal() {
 function closePrintModal() { document.getElementById('print-modal').classList.add('hidden'); }
 
 function generatePrintPreview() {
-    const checkboxes = document.querySelectorAll('.print-job-cb');
-    const selectedJobIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => parseInt(cb.value));
+    const checkboxes = document.querySelectorAll('.print-item-cb');
+    const selectedIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => parseInt(cb.value));
     
     const printArea = document.getElementById('print-preview-area');
     const dateStr = new Date().toLocaleDateString();
+    const isJobView = currentJobId !== null;
     
-    let html = `<h2>${currentUserName}'s Job List</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
-    const jobsToPrint = jobs.filter(j => selectedJobIds.includes(j.id));
+    let html = '';
     
-    if(jobsToPrint.length === 0) { html += `<p>No jobs selected to print.</p>`; } 
-    else {
-        jobsToPrint.forEach(job => {
-            let jPriority = job.priority === 'High' ? '[HIGH PRIORITY] ' : '';
-            let jAssignee = job.assignedTo ? ` (Lead: ${getAssigneeText(job.assignedTo)})` : '';
-            let jDate = job.startDate ? `<br><span style="font-size: 14px; color: #d9534f;">Start: ${job.startDate} ${job.startTime ? job.startTime : ''}</span>` : '';
-            html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>${jDate}`;
-            
-            if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
-            else {
-                html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
-                job.tasks.forEach(task => {
-                    let tPriority = task.priority === 'High' ? '<strong style="color:red;">[HIGH]</strong> ' : '';
-                    let tAssignee = task.assignedTo ? ` <span style="color:blue;">(👤 ${getAssigneeText(task.assignedTo)})</span>` : '';
-                    html += `<li style="margin-bottom: 10px;">${tPriority}<strong>${task.title}</strong>${tAssignee} - Status: <em>${task.status}</em>`;
-                    if (task.desc) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #555;">Desc: ${task.desc}</span>`;
-                    if (task.dueDate) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #d9534f;">Due: ${task.dueDate} ${task.dueTime ? task.dueTime : ''}</span>`;
-                    if (task.notes) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #666;">Notes: ${task.notes}</span>`;
-                    html += `</li>`;
-                });
-                html += `</ul>`;
-            }
-            html += `</div>`;
-        });
+    if (isJobView) {
+        // Print Tasks Checklist
+        const job = jobs.find(j => j.id === currentJobId);
+        html = `<h2>${job.title} - Site Checklist</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
+        
+        const tasksToPrint = (job.tasks || []).filter(t => selectedIds.includes(t.id));
+        if(tasksToPrint.length === 0) { html += `<p>No tasks selected.</p>`; } 
+        else {
+            html += `<ul style="list-style-type: none; padding-left: 0;">`;
+            tasksToPrint.forEach(task => {
+                let tAssignee = task.assignedTo ? ` <strong>(Lead: ${getAssigneeText(task.assignedTo)})</strong>` : '';
+                let tDate = task.dueDate ? ` <span style="color:#d9534f; float:right;">[Due: ${task.dueDate}]</span>` : '';
+                html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 18px;">
+                        <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>
+                        ${task.title}${tAssignee}${tDate}
+                    </div>`;
+                if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555;">Desc: ${task.desc}</div>`;
+                if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #666; font-style: italic;">Notes: ${task.notes}</div>`;
+                html += `</li>`;
+            });
+            html += `</ul>`;
+        }
+    } else {
+        // Print Full Jobs List
+        html = `<h2>${currentUserName}'s Active Jobs</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
+        const jobsToPrint = jobs.filter(j => selectedIds.includes(j.id));
+        if(jobsToPrint.length === 0) { html += `<p>No jobs selected.</p>`; } 
+        else {
+            jobsToPrint.forEach(job => {
+                html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}</h3>`;
+                if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
+                else {
+                    html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
+                    job.tasks.forEach(task => { html += `<li><strong>${task.title}</strong> - Status: <em>${task.status}</em></li>`; });
+                    html += `</ul>`;
+                }
+                html += `</div>`;
+            });
+        }
     }
     printArea.innerHTML = html;
-}
-
-function printSingleJob() {
-    const job = jobs.find(j => j.id === currentJobId);
-    if(!job) return;
-    
-    const printArea = document.getElementById('real-print-area');
-    const dateStr = new Date().toLocaleDateString();
-    
-    let html = `<h2>Job Detail Report</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
-    let jPriority = job.priority === 'High' ? '[HIGH PRIORITY] ' : '';
-    let jAssignee = job.assignedTo ? ` (Lead: ${getAssigneeText(job.assignedTo)})` : '';
-    let jDate = job.startDate ? `<br><span style="font-size: 14px; color: #d9534f;">Start: ${job.startDate} ${job.startTime ? job.startTime : ''}</span>` : '';
-    html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>${jDate}`;
-    
-    if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
-    else {
-        html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
-        job.tasks.forEach(task => {
-            let tPriority = task.priority === 'High' ? '<strong style="color:red;">[HIGH]</strong> ' : '';
-            let tAssignee = task.assignedTo ? ` <span style="color:blue;">(👤 ${getAssigneeText(task.assignedTo)})</span>` : '';
-            html += `<li style="margin-bottom: 10px;">${tPriority}<strong>${task.title}</strong>${tAssignee} - Status: <em>${task.status}</em>`;
-            if (task.desc) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #555;">Desc: ${task.desc}</span>`;
-            if (task.dueDate) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #d9534f;">Due: ${task.dueDate} ${task.dueTime ? task.dueTime : ''}</span>`;
-            if (task.notes) html += `<br><span style="margin-left: 10px; font-size: 14px; color: #666;">Notes: ${task.notes}</span>`;
-            html += `</li>`;
-        });
-        html += `</ul>`;
-    }
-    html += `</div>`;
-    
-    printArea.innerHTML = html;
-    printArea.classList.remove('hidden'); 
-    setTimeout(() => { 
-        window.print(); 
-        printArea.classList.add('hidden'); 
-    }, 100);
 }
 
 function executePrint() { 
     const printArea = document.getElementById('real-print-area');
     printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
     printArea.classList.remove('hidden'); 
-    setTimeout(() => { 
-        window.print(); 
-        printArea.classList.add('hidden'); 
-    }, 100); 
+    setTimeout(() => { window.print(); printArea.classList.add('hidden'); }, 100); 
 }
 
-// --- MODAL LOGIC FOR ABOUT & WEB-FETCH CHANGELOG ---
+// --- CHANGELOG MODAL ---
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
-
-const logFilesList = ['v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15'];
 let currentLogIndex = 0;
-
 function openChangelogModal() {
     document.getElementById('changelog-modal').classList.remove('hidden');
     if (currentLogIndex === 0) { document.getElementById('changelog-container').innerHTML = ''; loadMoreLogs(); }
 }
 function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }
-
 async function loadMoreLogs() {
     const container = document.getElementById('changelog-container');
     let loadedThisTime = 0;
-    
     while (loadedThisTime < 2 && currentLogIndex < logFilesList.length) {
         const versionName = logFilesList[currentLogIndex];
         try {
             const response = await fetch(`log/${versionName}.txt`);
             if (!response.ok) throw new Error("File not found");
-            const text = await response.text();
-            const lines = text.split('\n');
+            const text = await response.text(); const lines = text.split('\n');
             let html = `<div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">`;
             html += `<h3 class="version-title">${lines[0] || versionName}</h3><ul class="changelog-list">`;
-            for(let i = 1; i < lines.length; i++) {
-                if(lines[i].trim() !== '') { html += `<li>${lines[i].replace('-', '').trim()}</li>`; }
-            }
-            html += `</ul></div>`;
-            container.innerHTML += html;
-        } catch (e) {
-            container.innerHTML += `
-                <div style="margin-bottom: 20px; padding: 10px; background: #ffe6e6; border-left: 4px solid red; color: #333;">
-                    <strong>Failed to load ${versionName}.txt</strong><br>
-                    <span style="font-size: 12px; color: #cc0000;">Make sure log/${versionName}.txt exists in your GitHub repository!</span>
-                </div>`;
-        }
+            for(let i = 1; i < lines.length; i++) { if(lines[i].trim() !== '') { html += `<li>${lines[i].replace('-', '').trim()}</li>`; } }
+            html += `</ul></div>`; container.innerHTML += html;
+        } catch (e) { container.innerHTML += `<div><strong>Failed to load ${versionName}.txt</strong></div>`; }
         currentLogIndex++; loadedThisTime++;
     }
-    
     if (currentLogIndex >= logFilesList.length) { document.getElementById('load-more-logs-btn').classList.add('hidden'); }
-    else { document.getElementById('load-more-logs-btn').classList.remove('hidden'); }
 }
 
-// Global functions for HTML
-window.loginWithEmail = loginWithEmail;
-window.loginWithGoogle = loginWithGoogle;
-window.logout = logout;
-window.openSettingsModal = openSettingsModal;
-window.closeSettingsModal = closeSettingsModal;
-window.toggleDarkMode = toggleDarkMode;
-window.openAllUsersJobsModal = openAllUsersJobsModal;
-window.closeAllUsersJobsModal = closeAllUsersJobsModal;
-window.cloneJob = cloneJob;
-window.shareCurrentJob = shareCurrentJob;
-window.openChangelogModal = openChangelogModal;
-window.closeChangelogModal = closeChangelogModal;
-window.loadMoreLogs = loadMoreLogs;
-window.openAboutModal = openAboutModal;
-window.closeAboutModal = closeAboutModal;
-window.openAddJobModal = openAddJobModal;
-window.closeAddJobModal = closeAddJobModal;
-window.saveNewJob = saveNewJob;
-window.openTeamModal = openTeamModal;
-window.closeTeamModal = closeTeamModal;
-window.addTeamMember = addTeamMember;
-window.removeTeamMember = removeTeamMember;
-window.toggleArchives = toggleArchives;
-window.openPrintModal = openPrintModal;
-window.closePrintModal = closePrintModal;
-window.generatePrintPreview = generatePrintPreview;
-window.printSingleJob = printSingleJob;
-window.executePrint = executePrint;
-window.goHome = goHome;
-window.archiveCurrentJob = archiveCurrentJob;
-window.deleteCurrentJob = deleteCurrentJob;
-window.deleteJobFromHome = deleteJobFromHome;
-window.moveJob = moveJob;
-window.addTask = addTask;
-window.deleteTask = deleteTask;
-window.moveTask = moveTask;
-window.updateTaskStatus = updateTaskStatus;
-window.updateTaskNotes = updateTaskNotes;
-window.viewJob = viewJob;
-window.banUser = banUser;
-window.unbanUser = unbanUser;
-window.deleteUserData = deleteUserData;
-window.openJobCalendarTemplate = openJobCalendarTemplate;
-window.openTaskCalendarTemplate = openTaskCalendarTemplate;
+// Global scope mapping
+window.loginWithEmail = loginWithEmail; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
+window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;
+window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.cloneJob = cloneJob; 
+window.shareCurrentJob = shareCurrentJob; window.openChangelogModal = openChangelogModal; window.closeChangelogModal = closeChangelogModal; 
+window.loadMoreLogs = loadMoreLogs; window.openAboutModal = openAboutModal; window.closeAboutModal = closeAboutModal; 
+window.openAddJobModal = openAddJobModal; window.closeAddJobModal = closeAddJobModal; window.saveNewJob = saveNewJob; 
+window.openTeamModal = openTeamModal; window.closeTeamModal = closeTeamModal; window.addTeamMember = addTeamMember; window.removeTeamMember = removeTeamMember; 
+window.toggleArchives = toggleArchives; window.openPrintModal = openPrintModal; window.closePrintModal = closePrintModal; 
+window.generatePrintPreview = generatePrintPreview; window.executePrint = executePrint; window.goHome = goHome; 
+window.archiveCurrentJob = archiveCurrentJob; window.deleteCurrentJob = deleteCurrentJob; window.deleteJobFromHome = deleteJobFromHome; 
+window.moveJob = moveJob; window.addTask = addTask; window.deleteTask = deleteTask; window.moveTask = moveTask; 
+window.updateTaskStatus = updateTaskStatus; window.updateTaskNotes = updateTaskNotes; window.viewJob = viewJob; 
+window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; 
+window.openJobCalendarTemplate = openJobCalendarTemplate; window.openTaskCalendarTemplate = openTaskCalendarTemplate;
+window.pushSavedJobToCalendar = pushSavedJobToCalendar; window.pushSavedTaskToCalendar = pushSavedTaskToCalendar;

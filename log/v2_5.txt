@@ -1,0 +1,7 @@
+Version 2.5
+- Added Master Admin Panel to view all company jobs, manage users, and remotely wipe data.
+- Introduced Job Importing: Admins can now clone jobs from other users to their own dashboard.
+- Added Team Management: Create custom roles and assign team members directly to jobs or tasks.
+- Added a global Dark Mode toggle in user settings.
+- Added an Archiving system to safely hide completed jobs without permanently deleting them.
+- Added Read-Only Share Links to safely send live job details to clients or sub-contractors.

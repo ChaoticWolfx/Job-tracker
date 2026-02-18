@@ -789,6 +789,9 @@ window.moveTask = moveTask;
 window.updateTaskStatus = updateTaskStatus;
 window.updateTaskNotes = updateTaskNotes;
 window.viewJob = viewJob;
+window.banUser = banUser;
+window.unbanUser = unbanUser;
+window.deleteUserData = deleteUserData;
 
 // --- ADMIN USER MANAGEMENT ---
 async function banUser(uid, userName) {

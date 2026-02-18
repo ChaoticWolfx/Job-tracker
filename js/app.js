@@ -1,6 +1,7 @@
-// Import Firebase directly from the web
+// Import Firebase & Auth directly from the web
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, doc, setDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // Your specific Firebase configuration
 const firebaseConfig = {
@@ -13,38 +14,107 @@ const firebaseConfig = {
   measurementId: "G-PV9V64CJZ5"
 };
 
-// Initialize the Cloud connection
+// Initialize the Cloud connection & Auth
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Master Admin Security Key
+const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
 
 // Data Structure & State
-let currentUser = null;
+let currentUserUid = null;
+let currentUserEmail = null;
+let currentUserName = null;
 let jobs = [];
 let teamMembers = [];
 let currentJobId = null;
 let viewingArchives = false;
 
-// --- RECOVERED CLOUD SAVE & LOAD LOGIC ---
+// --- AUTHENTICATION STATE OBSERVER ---
+// This acts as a security guard. It fires automatically when someone logs in or out.
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        // User just securely logged in!
+        currentUserUid = user.uid;
+        currentUserEmail = user.email;
+        currentUserName = user.displayName || user.email.split('@')[0]; // Fallback to email prefix if no name
+        
+        // Check if God Mode is authorized
+        if (currentUserUid === ADMIN_UID) {
+            document.getElementById('admin-overview-btn').classList.remove('hidden');
+        } else {
+            document.getElementById('admin-overview-btn').classList.add('hidden');
+        }
+
+        await loadData();
+        
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('home-view').classList.remove('hidden');
+        document.getElementById('logout-btn').classList.remove('hidden');
+        document.getElementById('app-footer').classList.remove('hidden');
+        document.getElementById('header-title').innerText = currentUserName + "'s Jobs";
+        
+        viewingArchives = false;
+        renderJobs();
+    } else {
+        // User logged out. Wipe screen and lock down.
+        currentUserUid = null;
+        currentUserName = null;
+        jobs = [];
+        teamMembers = [];
+        
+        document.getElementById('login-view').classList.remove('hidden');
+        document.getElementById('home-view').classList.add('hidden');
+        document.getElementById('job-detail-view').classList.add('hidden');
+        document.getElementById('logout-btn').classList.add('hidden');
+        document.getElementById('app-footer').classList.add('hidden');
+        document.getElementById('admin-overview-btn').classList.add('hidden');
+        document.getElementById('header-title').innerText = "Job Tracker";
+    }
+});
+
+// --- LOGIN COMMANDS ---
+async function loginWithEmail() {
+    const email = document.getElementById('email-input').value.trim();
+    const pass = document.getElementById('password-input').value;
+    if(!email || !pass) return alert("Please enter email and password.");
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch(e) { alert("Login failed: " + e.message); }
+}
+
+async function loginWithGoogle() {
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch(e) { alert("Google login failed: " + e.message); }
+}
+
+async function logout() {
+    await signOut(auth);
+}
+
+// --- SECURE CLOUD LOAD LOGIC ---
 async function loadData() { 
-    if (!currentUser) return;
-    const userKey = currentUser.toLowerCase();
+    if (!currentUserUid) return;
     jobs = [];
     teamMembers = [];
 
-    // 1. Fetch your custom 'jobs' collection
-    const qJobs = query(collection(db, "jobs"), where("owner", "==", userKey));
+    // 1. Fetch only jobs owned by this specific authenticated UID
+    const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", currentUserUid));
     const querySnapshotJobs = await getDocs(qJobs);
     querySnapshotJobs.forEach((doc) => {
         let data = doc.data();
-        data.firebaseId = doc.id; // Save the original random ID you created
-        if(!data.id) data.id = data.createdAt || Date.now(); // Fallback ID
+        data.firebaseId = doc.id; 
+        if(!data.id) data.id = data.createdAt || Date.now(); 
         if(!data.tasks) data.tasks = [];
         jobs.push(data);
     });
-    jobs.sort((a,b) => a.id - b.id); // Keep them in chronological order
+    jobs.sort((a,b) => a.id - b.id); 
 
-    // 2. Fetch your custom 'team' collection
-    const qTeam = query(collection(db, "team"), where("owner", "==", userKey));
+    // 2. Fetch team members owned by this specific authenticated UID
+    const qTeam = query(collection(db, "team"), where("ownerUid", "==", currentUserUid));
     const querySnapshotTeam = await getDocs(qTeam);
     querySnapshotTeam.forEach((doc) => {
         let data = doc.data();
@@ -54,19 +124,17 @@ async function loadData() {
 }
 
 async function saveData() { 
-    if (!currentUser) return;
-    const userKey = currentUser.toLowerCase();
+    if (!currentUserUid) return;
 
-    // Sync all active jobs to your 'jobs' folder
     for (const job of jobs) {
         const docId = job.firebaseId || job.id.toString();
-        await setDoc(doc(db, "jobs", docId), { ...job, owner: userKey });
+        // Securely attach the UID to the document before sending it to the Vault
+        await setDoc(doc(db, "jobs", docId), { ...job, owner: currentUserName, ownerUid: currentUserUid });
     }
 
-    // Sync all team members to your 'team' folder
     for (const member of teamMembers) {
         const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
-        await setDoc(doc(db, "team", docId), { ...member, owner: userKey });
+        await setDoc(doc(db, "team", docId), { ...member, owner: currentUserName, ownerUid: currentUserUid });
     }
 }
 
@@ -76,41 +144,6 @@ function getAssigneeText(name) {
     const member = teamMembers.find(m => m.name === name);
     if (member && member.role) return `${name} (${member.role})`;
     return name;
-}
-
-// --- Login Logic ---
-async function login() {
-    const btn = document.querySelector('#login-view .btn-primary');
-    const input = document.getElementById('username-input').value.trim();
-    if(input === "") { alert("Please enter a name."); return; }
-    
-    btn.innerText = "Loading Database...";
-    btn.style.opacity = "0.7";
-    
-    currentUser = input;
-    await loadData(); 
-    
-    btn.innerText = "Log In";
-    btn.style.opacity = "1";
-
-    document.getElementById('login-view').classList.add('hidden');
-    document.getElementById('home-view').classList.remove('hidden');
-    document.getElementById('logout-btn').classList.remove('hidden');
-    document.getElementById('app-footer').classList.remove('hidden');
-    document.getElementById('header-title').innerText = currentUser + "'s Jobs";
-    viewingArchives = false;
-    renderJobs();
-}
-
-function logout() {
-    currentUser = null; jobs = []; teamMembers = [];
-    document.getElementById('username-input').value = '';
-    document.getElementById('login-view').classList.remove('hidden');
-    document.getElementById('home-view').classList.add('hidden');
-    document.getElementById('job-detail-view').classList.add('hidden');
-    document.getElementById('logout-btn').classList.add('hidden');
-    document.getElementById('app-footer').classList.add('hidden');
-    document.getElementById('header-title').innerText = "Job Tracker";
 }
 
 function goHome() {
@@ -150,7 +183,7 @@ async function addTeamMember() {
 async function removeTeamMember(index) { 
     const member = teamMembers[index];
     const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
-    await deleteDoc(doc(db, "team", docId)); // Permanently remove from cloud
+    await deleteDoc(doc(db, "team", docId)); 
     teamMembers.splice(index, 1); 
     renderTeamList(); 
 }
@@ -287,7 +320,7 @@ async function deleteJobFromHome(jobId) {
     if(confirm("PERMANENTLY delete this job and all tasks?")) {
         const job = jobs.find(j => j.id === jobId);
         const docId = job.firebaseId || job.id.toString();
-        await deleteDoc(doc(db, "jobs", docId)); // Wipe from Cloud folder
+        await deleteDoc(doc(db, "jobs", docId)); 
         jobs = jobs.filter(j => j.id !== jobId); 
         renderJobs();
     }
@@ -300,7 +333,7 @@ async function deleteCurrentJob() {
     if(confirm("PERMANENTLY delete this job?")) {
         const job = jobs.find(j => j.id === currentJobId);
         const docId = job.firebaseId || job.id.toString();
-        await deleteDoc(doc(db, "jobs", docId)); // Wipe from Cloud folder
+        await deleteDoc(doc(db, "jobs", docId)); 
         jobs = jobs.filter(j => j.id !== currentJobId); 
         goHome();
     }
@@ -415,10 +448,10 @@ async function deleteTask(taskId) {
     }
 }
 
-// --- CLOUD ADMIN OVERVIEW LOGIC (Upgraded) ---
+// --- CLOUD ADMIN OVERVIEW LOGIC ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
-    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching data from your jobs folder...</p>';
+    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company jobs from Cloud...</p>';
     document.getElementById('all-users-modal').classList.remove('hidden');
 
     try {
@@ -429,7 +462,7 @@ async function openAllUsersJobsModal() {
         let usersData = {};
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            const owner = data.owner || "Unknown";
+            const owner = data.owner || "Unknown User";
             if(!usersData[owner]) usersData[owner] = [];
             usersData[owner].push(data);
         });
@@ -531,7 +564,7 @@ function generatePrintPreview() {
     const printArea = document.getElementById('print-preview-area');
     const dateStr = new Date().toLocaleDateString();
     
-    let html = `<h2>${currentUser}'s Job List</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
+    let html = `<h2>${currentUserName}'s Job List</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
     const jobsToPrint = jobs.filter(j => selectedJobIds.includes(j.id));
     
     if(jobsToPrint.length === 0) { html += `<p>No jobs selected to print.</p>`; } 
@@ -599,7 +632,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -641,7 +674,8 @@ async function loadMoreLogs() {
 }
 
 // Global functions for HTML
-window.login = login;
+window.loginWithEmail = loginWithEmail;
+window.loginWithGoogle = loginWithGoogle;
 window.logout = logout;
 window.openAllUsersJobsModal = openAllUsersJobsModal;
 window.closeAllUsersJobsModal = closeAllUsersJobsModal;

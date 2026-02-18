@@ -27,11 +27,36 @@ const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
 let currentUserUid = null;
 let currentUserEmail = null;
 let currentUserName = null;
+let currentUserPhoto = null;
 let jobs = [];
 let teamMembers = [];
-let adminViewJobs = []; // Temporarily stores jobs viewed in the Admin panel
+let adminViewJobs = []; 
 let currentJobId = null;
 let viewingArchives = false;
+
+// --- THEME LOGIC ---
+function loadThemePreference() {
+    const isDark = localStorage.getItem('jobTrackerDarkMode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+        const toggle = document.getElementById('dark-mode-toggle');
+        if(toggle) toggle.checked = true;
+    }
+}
+function toggleDarkMode() {
+    const isDark = document.getElementById('dark-mode-toggle').checked;
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('jobTrackerDarkMode', 'true');
+    } else {
+        document.body.classList.remove('dark-mode');
+        localStorage.setItem('jobTrackerDarkMode', 'false');
+    }
+}
+
+// Load theme immediately when script starts
+loadThemePreference();
+
 
 // --- AUTHENTICATION STATE OBSERVER ---
 onAuthStateChanged(auth, async (user) => {
@@ -40,6 +65,16 @@ onAuthStateChanged(auth, async (user) => {
         currentUserEmail = user.email;
         currentUserName = user.displayName || user.email.split('@')[0]; 
         
+        // Grab Google Photo OR generate a clean default avatar with their initial
+        currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
+        
+        // Populate Profile Photos & Settings
+        document.getElementById('user-profile-pic').src = currentUserPhoto;
+        document.getElementById('user-profile-pic').classList.remove('hidden');
+        document.getElementById('settings-profile-pic').src = currentUserPhoto;
+        document.getElementById('settings-user-name').innerText = currentUserName;
+        document.getElementById('settings-user-email').innerText = currentUserEmail;
+
         if (currentUserUid === ADMIN_UID) {
             document.getElementById('admin-overview-btn').classList.remove('hidden');
         } else {
@@ -59,6 +94,7 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         currentUserUid = null;
         currentUserName = null;
+        currentUserPhoto = null;
         jobs = [];
         teamMembers = [];
         
@@ -66,6 +102,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('home-view').classList.add('hidden');
         document.getElementById('job-detail-view').classList.add('hidden');
         document.getElementById('logout-btn').classList.add('hidden');
+        document.getElementById('user-profile-pic').classList.add('hidden');
         document.getElementById('app-footer').classList.add('hidden');
         document.getElementById('admin-overview-btn').classList.add('hidden');
         document.getElementById('header-title').innerText = "Job Tracker";
@@ -89,6 +126,11 @@ async function loginWithGoogle() {
 }
 
 async function logout() { await signOut(auth); }
+
+// --- SETTINGS MODAL ---
+function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
+function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
+
 
 // --- SECURE CLOUD LOAD LOGIC ---
 async function loadData() { 
@@ -274,8 +316,8 @@ function renderJobs() {
         
         card.innerHTML = `
             <div style="position:absolute; top:12px; right:12px; display:flex; gap:5px;">
-                <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid #ccc;" onclick="event.stopPropagation(); moveJob(${job.id}, 'up')">⬆️</button>
-                <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid #ccc;" onclick="event.stopPropagation(); moveJob(${job.id}, 'down')">⬇️</button>
+                <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid var(--border-color); color: var(--text);" onclick="event.stopPropagation(); moveJob(${job.id}, 'up')">⬆️</button>
+                <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid var(--border-color); color: var(--text);" onclick="event.stopPropagation(); moveJob(${job.id}, 'down')">⬇️</button>
                 <button class="btn-danger btn-small" onclick="event.stopPropagation(); deleteJobFromHome(${job.id})" style="padding: 2px 8px; font-size:12px;">X</button>
             </div>
             ${badges ? `<div style="margin-bottom:8px; padding-right: 90px;">${badges}</div>` : ''}
@@ -372,12 +414,12 @@ function renderTasks() {
             <div class="task-header" style="align-items:flex-start;">
                 <div style="font-size: 18px; line-height:1.4; padding-right: 90px;">${badgeDisplay}<br>${task.title}</div>
                 <div style="display:flex; gap:5px; position:absolute; top:12px; right:12px;">
-                    <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid #ccc;" onclick="event.stopPropagation(); moveTask(${task.id}, 'up')">⬆️</button>
-                    <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid #ccc;" onclick="event.stopPropagation(); moveTask(${task.id}, 'down')">⬇️</button>
+                    <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid var(--border-color); color: var(--text);" onclick="event.stopPropagation(); moveTask(${task.id}, 'up')">⬆️</button>
+                    <button class="btn-small" style="padding: 2px 8px; font-size:12px; background:var(--light-gray); border: 1px solid var(--border-color); color: var(--text);" onclick="event.stopPropagation(); moveTask(${task.id}, 'down')">⬇️</button>
                     <button class="btn-danger btn-small" style="padding: 2px 8px; font-size:12px;" onclick="event.stopPropagation(); deleteTask(${task.id})">X</button>
                 </div>
             </div>
-            ${task.desc ? `<p style="color: #555; font-size: 15px;">${task.desc}</p>` : ''}
+            ${task.desc ? `<p style="color: var(--gray); font-size: 15px;">${task.desc}</p>` : ''}
             ${dateDisplay}
             <select class="status-select" style="margin-top: 10px;" onchange="updateTaskStatus(${task.id}, this.value)">
                 <option value="Not Started" ${task.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
@@ -449,14 +491,13 @@ async function openAllUsersJobsModal() {
     try {
         const querySnapshot = await getDocs(collection(db, "jobs"));
         container.innerHTML = '';
-        adminViewJobs = []; // Clear temporary admin view array
+        adminViewJobs = []; 
         
-        // Group all pulled jobs by their Owner tag
         let usersData = {};
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            data.firebaseId = doc.id; // Save specific cloud ID for cloning
-            adminViewJobs.push(data); // Push into the temporary array
+            data.firebaseId = doc.id; 
+            adminViewJobs.push(data); 
 
             const owner = data.owner || "Unknown User";
             if(!usersData[owner]) usersData[owner] = [];
@@ -468,20 +509,19 @@ async function openAllUsersJobsModal() {
             return;
         }
 
-        // Build the dropdowns for each User found
         for (const [owner, userJobs] of Object.entries(usersData)) {
             const userName = owner.charAt(0).toUpperCase() + owner.slice(1);
             const activeJobs = userJobs.filter(j => !j.isArchived);
             
             const userDiv = document.createElement('div');
-            userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--light-gray)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
+            userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
             
             const userHeader = document.createElement('div');
             userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.cursor = 'pointer'; userHeader.style.display = 'flex'; userHeader.style.justifyContent = 'space-between';
             userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`;
             
             const jobsListContainer = document.createElement('div');
-            jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'white';
+            jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'var(--card-bg)';
             
             if (activeJobs.length === 0) {
                 jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">No active jobs.</em></div>';
@@ -490,12 +530,11 @@ async function openAllUsersJobsModal() {
                     const tasks = job.tasks || [];
                     const completed = tasks.filter(t => t.status === 'Complete').length;
                     const total = tasks.length;
-                    const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid #eee';
+                    const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid var(--border-color)';
                     
                     const jobHeader = document.createElement('div');
                     jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between'; jobHeader.style.alignItems = 'center';
                     
-                    // Added the Import Button inside the job header!
                     jobHeader.innerHTML = `
                         <div style="flex: 1;">
                             <strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>
@@ -504,7 +543,7 @@ async function openAllUsersJobsModal() {
                     `;
                     
                     const taskList = document.createElement('div');
-                    taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = '#fafafa';
+                    taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = 'var(--bg-color)';
                     
                     if(total === 0) { taskList.innerHTML = '<em style="color:var(--gray); font-size:13px;">No tasks.</em>'; } 
                     else {
@@ -544,35 +583,29 @@ async function openAllUsersJobsModal() {
 }
 function closeAllUsersJobsModal() { document.getElementById('all-users-modal').classList.add('hidden'); }
 
-// --- THE NEW IMPORT/CLONE FUNCTION ---
+// --- THE IMPORT/CLONE FUNCTION ---
 async function cloneJob(firebaseId) {
-    // Find the specific job in the admin temporary array
     const originalJob = adminViewJobs.find(j => j.firebaseId === firebaseId);
     if(!originalJob) return;
 
     if(!confirm(`Import "${originalJob.title || 'Untitled'}" to your own job list?`)) return;
 
-    // Deep copy the job so changes don't affect the original owner's list
     const newJob = JSON.parse(JSON.stringify(originalJob));
     
-    // Assign completely new IDs and transfer ownership to you
     newJob.id = Date.now();
     newJob.firebaseId = newJob.id.toString(); 
     newJob.owner = currentUserName;
     newJob.ownerUid = currentUserUid;
     newJob.title = (newJob.title || 'Untitled') + " (Imported)";
     
-    // Refresh task IDs to prevent overlaps
     if(newJob.tasks) {
         newJob.tasks.forEach((t, i) => {
             t.id = Date.now() + i + 1;
         });
     }
 
-    // Push it straight into your home screen!
     jobs.push(newJob);
     
-    // Alert and save
     alert(`"${newJob.title}" imported successfully! You can find it on your home screen.`);
     renderJobs();
     await saveData();
@@ -675,7 +708,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -695,7 +728,7 @@ async function loadMoreLogs() {
             if (!response.ok) throw new Error("File not found");
             const text = await response.text();
             const lines = text.split('\n');
-            let html = `<div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">`;
+            let html = `<div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">`;
             html += `<h3 class="version-title">${lines[0] || versionName}</h3><ul class="changelog-list">`;
             for(let i = 1; i < lines.length; i++) {
                 if(lines[i].trim() !== '') { html += `<li>${lines[i].replace('-', '').trim()}</li>`; }
@@ -704,7 +737,7 @@ async function loadMoreLogs() {
             container.innerHTML += html;
         } catch (e) {
             container.innerHTML += `
-                <div style="margin-bottom: 20px; padding: 10px; background: #ffe6e6; border-left: 4px solid red;">
+                <div style="margin-bottom: 20px; padding: 10px; background: #ffe6e6; border-left: 4px solid red; color: #333;">
                     <strong>Failed to load ${versionName}.txt</strong><br>
                     <span style="font-size: 12px; color: #cc0000;">Make sure log/${versionName}.txt exists in your GitHub repository!</span>
                 </div>`;
@@ -720,6 +753,9 @@ async function loadMoreLogs() {
 window.loginWithEmail = loginWithEmail;
 window.loginWithGoogle = loginWithGoogle;
 window.logout = logout;
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.toggleDarkMode = toggleDarkMode;
 window.openAllUsersJobsModal = openAllUsersJobsModal;
 window.closeAllUsersJobsModal = closeAllUsersJobsModal;
 window.cloneJob = cloneJob;

@@ -54,7 +54,6 @@ function toggleDarkMode() {
     }
 }
 
-// Load theme immediately when script starts
 loadThemePreference();
 
 
@@ -65,10 +64,8 @@ onAuthStateChanged(auth, async (user) => {
         currentUserEmail = user.email;
         currentUserName = user.displayName || user.email.split('@')[0]; 
         
-        // Grab Google Photo OR generate a clean default avatar with their initial
         currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
         
-        // Populate Profile Photos & Settings
         document.getElementById('user-profile-pic').src = currentUserPhoto;
         document.getElementById('user-profile-pic').classList.remove('hidden');
         document.getElementById('settings-profile-pic').src = currentUserPhoto;
@@ -482,7 +479,36 @@ async function deleteTask(taskId) {
     }
 }
 
-// --- CLOUD ADMIN OVERVIEW LOGIC WITH JOB CLONING ---
+// --- ADMIN USER MANAGEMENT ---
+async function banUser(uid, userName) {
+    if(!confirm(`Ban ${userName}? They will be immediately locked out of the app.`)) return;
+    await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName });
+    alert(`${userName} has been banned.`);
+}
+
+async function unbanUser(uid, userName) {
+    if(!confirm(`Unban ${userName}?`)) return;
+    await deleteDoc(doc(db, "banned_users", uid));
+    alert(`${userName} has been unbanned.`);
+}
+
+async function deleteUserData(uid, userName) {
+    if(!confirm(`⚠️ PERMANENTLY delete ALL jobs and team data for ${userName}? This CANNOT be undone.`)) return;
+    
+    const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", uid));
+    const snapJobs = await getDocs(qJobs);
+    snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id)));
+    
+    const qTeam = query(collection(db, "team"), where("ownerUid", "==", uid));
+    const snapTeam = await getDocs(qTeam);
+    snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id)));
+    
+    alert(`All data for ${userName} has been permanently wiped from the cloud.`);
+    openAllUsersJobsModal(); 
+}
+
+
+// --- CLOUD ADMIN OVERVIEW LOGIC WITH BANNING ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
     container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company jobs from Cloud...</p>';
@@ -500,8 +526,9 @@ async function openAllUsersJobsModal() {
             adminViewJobs.push(data); 
 
             const owner = data.owner || "Unknown User";
-            if(!usersData[owner]) usersData[owner] = [];
-            usersData[owner].push(data);
+            const uid = data.ownerUid || "unknown-uid";
+            if(!usersData[owner]) usersData[owner] = { uid: uid, jobs: [] };
+            usersData[owner].jobs.push(data);
         });
 
         if (Object.keys(usersData).length === 0) {
@@ -509,16 +536,27 @@ async function openAllUsersJobsModal() {
             return;
         }
 
-        for (const [owner, userJobs] of Object.entries(usersData)) {
+        for (const [owner, userData] of Object.entries(usersData)) {
             const userName = owner.charAt(0).toUpperCase() + owner.slice(1);
-            const activeJobs = userJobs.filter(j => !j.isArchived);
+            const activeJobs = userData.jobs.filter(j => !j.isArchived);
+            const userUid = userData.uid;
             
             const userDiv = document.createElement('div');
             userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
             
             const userHeader = document.createElement('div');
-            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.cursor = 'pointer'; userHeader.style.display = 'flex'; userHeader.style.justifyContent = 'space-between';
-            userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`;
+            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.display = 'flex'; userHeader.style.flexDirection = 'column'; userHeader.style.gap = '10px';
+            
+            userHeader.innerHTML = `
+                <div style="display: flex; justify-content: space-between; cursor: pointer; align-items: center;" id="toggle-${userUid}">
+                    <span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>
+                </div>
+                <div style="display: flex; gap: 5px; justify-content: flex-end; padding-top: 5px; border-top: 1px solid var(--border-color);">
+                    <button class="btn-warning btn-small" style="padding: 4px 10px;" onclick="banUser('${userUid}', '${userName}')">Ban</button>
+                    <button class="btn-success btn-small" style="padding: 4px 10px;" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>
+                    <button class="btn-danger btn-small" style="padding: 4px 10px;" onclick="deleteUserData('${userUid}', '${userName}')">Wipe Data</button>
+                </div>
+            `;
             
             const jobsListContainer = document.createElement('div');
             jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'var(--card-bg)';
@@ -558,22 +596,14 @@ async function openAllUsersJobsModal() {
 
                     jobHeader.onclick = (e) => {
                         e.stopPropagation();
-                        if(taskList.style.display === 'none') { taskList.style.display = 'block'; jobHeader.innerHTML = `
-                            <div style="flex: 1;"><strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▲</span></div>
-                            <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
-                        `; } 
-                        else { taskList.style.display = 'none'; jobHeader.innerHTML = `
-                            <div style="flex: 1;"><strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span></div>
-                            <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
-                        `; }
+                        taskList.style.display = taskList.style.display === 'none' ? 'block' : 'none';
                     };
                     jobRow.appendChild(jobHeader); jobRow.appendChild(taskList); jobsListContainer.appendChild(jobRow);
                 });
             }
             
-            userHeader.onclick = () => {
-                if (jobsListContainer.style.display === 'none') { jobsListContainer.style.display = 'block'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▲</span>`; } 
-                else { jobsListContainer.style.display = 'none'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`; }
+            userHeader.querySelector(`#toggle-${userUid}`).onclick = () => {
+                jobsListContainer.style.display = jobsListContainer.style.display === 'none' ? 'block' : 'none';
             };
             userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
         }
@@ -708,7 +738,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -792,33 +822,3 @@ window.viewJob = viewJob;
 window.banUser = banUser;
 window.unbanUser = unbanUser;
 window.deleteUserData = deleteUserData;
-
-// --- ADMIN USER MANAGEMENT ---
-async function banUser(uid, userName) {
-    if(!confirm(`Ban ${userName}? They will be immediately locked out of the app.`)) return;
-    await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName });
-    alert(`${userName} has been banned.`);
-}
-
-async function unbanUser(uid, userName) {
-    if(!confirm(`Unban ${userName}?`)) return;
-    await deleteDoc(doc(db, "banned_users", uid));
-    alert(`${userName} has been unbanned.`);
-}
-
-async function deleteUserData(uid, userName) {
-    if(!confirm(`⚠️ PERMANENTLY delete ALL jobs and team data for ${userName}? This CANNOT be undone.`)) return;
-    
-    // Find and delete all jobs owned by this UID
-    const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", uid));
-    const snapJobs = await getDocs(qJobs);
-    snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id)));
-    
-    // Find and delete all team members owned by this UID
-    const qTeam = query(collection(db, "team"), where("ownerUid", "==", uid));
-    const snapTeam = await getDocs(qTeam);
-    snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id)));
-    
-    alert(`All data for ${userName} has been permanently wiped from the cloud.`);
-    openAllUsersJobsModal(); // Refresh the list
-}

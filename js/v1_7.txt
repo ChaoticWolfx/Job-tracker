@@ -1,0 +1,3 @@
+v1.7 Update
+- Merged changelog directly into the main file to bypass Android Chrome's strict local file isolation.
+- Created a dedicated, easy-to-find 'Update Zone' at the very bottom of the code for adding future updates.

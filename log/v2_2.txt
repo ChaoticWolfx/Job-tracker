@@ -1,0 +1,5 @@
+v2.2 Update (The UI & Profile Update)
+- Visual Overhaul: Added a new "Why use Job Tracker?" features showcase to the main login screen to highlight the app's core capabilities.
+- User Profiles: The app now automatically pulls your Google profile picture (or generates a custom avatar with your initial) and displays it in the top navigation bar.
+- Settings Menu: Added a brand new User Settings modal, accessible by tapping your profile picture.
+- Dark Mode: Added a 100% free Dark Theme toggle inside the User Settings that automatically saves and remembers your preference every time you open the app.

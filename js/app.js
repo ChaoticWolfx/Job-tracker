@@ -379,11 +379,23 @@ function createCalendarLink(title, startDate, startTime, description) {
     window.open(webUrl, '_blank');
 }
 
+// Calendar pushers for the creation forms
+function openJobCalendarTemplate() {
+    const title = document.getElementById('add-job-title').value.trim();
+    if (!title) return alert("Please enter a Job Title first!");
+    createCalendarLink(title, document.getElementById('add-job-date').value, document.getElementById('add-job-time').value, "Job Start Date");
+}
+function openTaskCalendarTemplate() {
+    const title = document.getElementById('new-task-title').value.trim();
+    if (!title) return alert("Please enter a Task Name first!");
+    createCalendarLink(title, document.getElementById('new-task-date').value, document.getElementById('new-task-time').value, document.getElementById('new-task-desc').value);
+}
+
+// Calendar pushers for existing (saved) items
 function pushSavedJobToCalendar() {
     const job = jobs.find(j => j.id === currentJobId);
     if(job) createCalendarLink(job.title, job.startDate, job.startTime, "Job Start Date");
 }
-
 function pushSavedTaskToCalendar(taskId) {
     const job = jobs.find(j => j.id === currentJobId);
     const task = job.tasks.find(t => t.id === taskId);
@@ -789,12 +801,12 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
-// 100% BULLETPROOF PRINTING (Bypasses CSS conflicts by isolating the print area)
+// 100% BULLETPROOF PRINTING (Mobile Spooler Fix)
 function executePrint() { 
     const printArea = document.getElementById('real-print-area');
     printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
     
-    // Inject a special CSS style block that absolutely hides the entire app EXCEPT the print area
+    // Inject a special CSS style block that aggressively hides EVERYTHING except the print area
     const style = document.createElement('style');
     style.id = 'temp-print-style';
     style.innerHTML = `
@@ -808,46 +820,78 @@ function executePrint() {
     
     printArea.classList.remove('hidden'); 
     
-    // Give the browser a split second to render the CSS change, then print
+    // Give the mobile browser time to apply the CSS, then open the print dialog
     setTimeout(() => { 
         window.print(); 
-        // Cleanup after print dialog closes
-        setTimeout(() => {
-            document.head.removeChild(style);
-            printArea.classList.add('hidden');
-        }, 500);
-    }, 200); 
+    }, 300); 
 }
 
-function printSingleJob() { openPrintModal(); } // Reroute the individual Print button to the smart Print Modal
+// Wait for the user to actually close the PDF/Print screen before cleaning up!
+window.addEventListener('afterprint', () => {
+    const style = document.getElementById('temp-print-style');
+    if (style) document.head.removeChild(style);
+    document.getElementById('real-print-area').classList.add('hidden');
+});
 
-// --- CHANGELOG MODAL ---
+function printSingleJob() { openPrintModal(); }
+
+// --- CHANGELOG MODAL (FOLDER-BASED SYSTEM) ---
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
-const logFilesList = ['v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15'];
+
+const logFilesList = ['v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
+
 function openChangelogModal() {
     document.getElementById('changelog-modal').classList.remove('hidden');
-    if (currentLogIndex === 0) { document.getElementById('changelog-container').innerHTML = ''; loadMoreLogs(); }
+    if (currentLogIndex === 0) { 
+        document.getElementById('changelog-container').innerHTML = ''; 
+        loadMoreLogs(); 
+    }
 }
 function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }
+
 async function loadMoreLogs() {
     const container = document.getElementById('changelog-container');
     let loadedThisTime = 0;
+    
+    const loadBtn = document.getElementById('load-more-logs-btn');
+    if(loadBtn) loadBtn.innerText = "Loading...";
+
     while (loadedThisTime < 2 && currentLogIndex < logFilesList.length) {
         const versionName = logFilesList[currentLogIndex];
         try {
-            const response = await fetch(`log/${versionName}.txt`);
+            // Cache buster ensures it pulls your latest text file changes
+            const response = await fetch(`log/${versionName}.txt?v=${Date.now()}`);
             if (!response.ok) throw new Error("File not found");
-            const text = await response.text(); const lines = text.split('\n');
+            
+            const text = await response.text();
+            const lines = text.split('\n');
+            
             let html = `<div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">`;
-            html += `<h3 class="version-title">${lines[0] || versionName}</h3><ul class="changelog-list">`;
-            for(let i = 1; i < lines.length; i++) { if(lines[i].trim() !== '') { html += `<li>${lines[i].replace('-', '').trim()}</li>`; } }
-            html += `</ul></div>`; container.innerHTML += html;
-        } catch (e) { container.innerHTML += `<div><strong>Failed to load ${versionName}.txt</strong></div>`; }
-        currentLogIndex++; loadedThisTime++;
+            html += `<h3 class="version-title" style="color:var(--primary); margin-bottom:10px;">${lines[0] || versionName}</h3><ul class="changelog-list" style="padding-left: 20px; line-height: 1.6;">`;
+            
+            for(let i = 1; i < lines.length; i++) {
+                if(lines[i].trim() !== '') { 
+                    html += `<li>${lines[i].replace(/^-/, '').trim()}</li>`; 
+                }
+            }
+            html += `</ul></div>`;
+            container.innerHTML += html;
+            loadedThisTime++; 
+        } catch (e) {
+            // Silently skip if the file hasn't been created in GitHub yet
+            console.warn(`Missing file: log/${versionName}.txt`);
+        }
+        currentLogIndex++;
     }
-    if (currentLogIndex >= logFilesList.length) { document.getElementById('load-more-logs-btn').classList.add('hidden'); }
+    
+    if (currentLogIndex >= logFilesList.length) { 
+        if(loadBtn) loadBtn.style.display = 'none'; 
+        if(container.innerHTML === '') container.innerHTML = '<p style="color:var(--gray); text-align:center;">No updates found. Create a log folder in GitHub!</p>';
+    } else { 
+        if(loadBtn) { loadBtn.style.display = 'inline-block'; loadBtn.innerText = "Show More"; }
+    }
 }
 
 // Global scope mapping
@@ -865,4 +909,4 @@ window.moveJob = moveJob; window.addTask = addTask; window.deleteTask = deleteTa
 window.updateTaskStatus = updateTaskStatus; window.updateTaskNotes = updateTaskNotes; window.viewJob = viewJob; 
 window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; 
 window.pushSavedJobToCalendar = pushSavedJobToCalendar; window.pushSavedTaskToCalendar = pushSavedTaskToCalendar;
-window.printSingleJob = printSingleJob;
+window.printSingleJob = printSingleJob; window.openJobCalendarTemplate = openJobCalendarTemplate; window.openTaskCalendarTemplate = openTaskCalendarTemplate;

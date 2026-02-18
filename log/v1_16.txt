@@ -1,0 +1,4 @@
+v1.16 Update
+- Database Architecture Fix: Pointed the app's read/write functions back to the user's custom `jobs` and `team` collections in Firebase.
+- Saved data from previous versions successfully recovered and integrated.
+- Upgraded Admin Overview to parse the original specific jobs collection.

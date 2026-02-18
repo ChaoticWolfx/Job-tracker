@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
-// NEW: Request access to the user's Google Calendar!
+// Request access to the user's Google Calendar
 googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
 
 // Master Admin Security Key
@@ -30,7 +30,7 @@ let currentUserUid = null;
 let currentUserEmail = null;
 let currentUserName = null;
 let currentUserPhoto = null;
-let googleAccessToken = sessionStorage.getItem('googleAccessToken') || null; // For Calendar Sync
+let googleAccessToken = sessionStorage.getItem('googleAccessToken') || null; 
 let jobs = [];
 let teamMembers = [];
 let adminViewJobs = []; 
@@ -38,7 +38,6 @@ let currentJobId = null;
 let viewingArchives = false;
 
 // --- SHARED LINK ROUTING ---
-// Check if someone clicked a shared link BEFORE showing the login screen
 const urlParams = new URLSearchParams(window.location.search);
 const sharedJobId = urlParams.get('job');
 
@@ -80,7 +79,7 @@ async function loadSharedJob(firebaseDocId) {
             }
         } else {
             alert("This job link is invalid or is no longer being shared.");
-            window.location.href = window.location.pathname; // Redirect to normal login
+            window.location.href = window.location.pathname; 
         }
     } catch (e) {
         alert("Error loading shared job. It may be private or deleted.");
@@ -110,7 +109,7 @@ function toggleDarkMode() {
 loadThemePreference();
 
 // --- AUTHENTICATION STATE OBSERVER ---
-if (!sharedJobId) { // Only run auth observer if we aren't looking at a shared link
+if (!sharedJobId) { 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUserUid = user.uid;
@@ -135,7 +134,6 @@ if (!sharedJobId) { // Only run auth observer if we aren't looking at a shared l
             document.getElementById('settings-user-name').innerText = currentUserName;
             document.getElementById('settings-user-email').innerText = currentUserEmail;
 
-            // Unhide Calendar options if they logged in with Google AND we have a token
             if (googleAccessToken) {
                 document.getElementById('job-calendar-wrapper').style.display = 'flex';
                 document.getElementById('task-calendar-wrapper').style.display = 'inline-block';
@@ -193,12 +191,10 @@ async function loginWithEmail() {
 async function loginWithGoogle() {
     try {
         const result = await signInWithPopup(auth, googleProvider);
-        // NEW: Capture the Google Access Token for Calendar Sync!
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential && credential.accessToken) {
             googleAccessToken = credential.accessToken;
             sessionStorage.setItem('googleAccessToken', googleAccessToken);
-            // Show calendar checkboxes
             document.getElementById('job-calendar-wrapper').style.display = 'flex';
             document.getElementById('task-calendar-wrapper').style.display = 'inline-block';
         }
@@ -224,6 +220,11 @@ async function loadData() {
         data.firebaseId = doc.id; 
         if(!data.id) data.id = data.createdAt || Date.now(); 
         if(!data.tasks) data.tasks = [];
+        
+        // BUG FIX: Ensure old jobs default properly so they don't randomly archive or break
+        if(typeof data.isArchived === 'undefined') data.isArchived = false; 
+        if(typeof data.isShared === 'undefined') data.isShared = false;
+        
         jobs.push(data);
     });
     jobs.sort((a,b) => a.id - b.id); 
@@ -322,7 +323,6 @@ function populateDropdowns() {
     if(jobDropdown) jobDropdown.innerHTML = optionsHTML;
     if(taskDropdown) taskDropdown.innerHTML = optionsHTML;
 }
-
 // --- Order Up/Down Functions ---
 async function moveJob(jobId, direction) {
     const index = jobs.findIndex(j => j.id === jobId);
@@ -361,7 +361,7 @@ async function moveTask(taskId, direction) {
 
 // --- GOOGLE CALENDAR SYNC LOGIC ---
 async function createCalendarEvent(title, date, description) {
-    if (!googleAccessToken) return; // Silent fail if not signed in with Google
+    if (!googleAccessToken) return; 
     
     const event = {
         summary: `Job Tracker: ${title}`,
@@ -370,7 +370,7 @@ async function createCalendarEvent(title, date, description) {
     
     if (date) {
         event.start = { date: date };
-        event.end = { date: date }; // Setting both to date makes it an 'All Day' event
+        event.end = { date: date }; 
     } else {
         const today = new Date().toISOString().split('T')[0];
         event.start = { date: today };
@@ -463,7 +463,6 @@ async function saveNewJob() {
 
     jobs.push({ id: Date.now(), title: title, priority: priority, assignedTo: assignee, tasks: [], isArchived: false, isShared: false });
     
-    // Trigger Calendar Sync if checked!
     if (syncCal) { await createCalendarEvent(title, null, `Priority: ${priority}`); }
 
     if(viewingArchives) { viewingArchives = false; document.getElementById('toggle-archive-btn').innerText = "Show Archives"; document.getElementById('toggle-archive-btn').style.background = "var(--light-gray)"; }
@@ -476,19 +475,16 @@ async function shareCurrentJob() {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     if(jobIndex < 0) return;
     
-    // Update the database to mark this job as public (read-only)
     jobs[jobIndex].isShared = true;
     await saveData(); 
     
     const firebaseId = jobs[jobIndex].firebaseId || jobs[jobIndex].id.toString();
     const shareUrl = window.location.origin + window.location.pathname + '?job=' + firebaseId;
     
-    // Copy to clipboard
     try {
         await navigator.clipboard.writeText(shareUrl);
         alert("🔗 Link copied to clipboard! Anyone with this link can view a read-only version of this job.");
     } catch (err) {
-        // Fallback for older browsers
         alert("Share this link to grant Read-Only access: \n\n" + shareUrl);
     }
 }
@@ -502,10 +498,17 @@ async function deleteJobFromHome(jobId) {
         renderJobs();
     }
 }
+
 async function archiveCurrentJob() {
+    // BUG FIX: Confirmation added to stop fat-finger archiving
+    if(!confirm("Move this job to the Archives?")) return; 
+    
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; goHome(); await saveData();
+    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; 
+    goHome(); 
+    await saveData();
 }
+
 async function deleteCurrentJob() {
     if(confirm("PERMANENTLY delete this job?")) {
         const job = jobs.find(j => j.id === currentJobId);
@@ -595,7 +598,6 @@ async function addTask() {
         id: Date.now(), title: title, desc: desc, priority: priority, assignedTo: assignee, status: 'Not Started', notes: '', hasDate: hasDate, dueDate: dueDate
     });
     
-    // Trigger Calendar Sync if checked!
     if (syncCal) { await createCalendarEvent(title, hasDate ? dueDate : null, desc); }
 
     document.getElementById('new-task-title').value = '';
@@ -635,12 +637,14 @@ async function banUser(uid, userName) {
     if(!confirm(`Ban ${userName}? They will be immediately locked out of the app.`)) return;
     await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName });
     alert(`${userName} has been banned.`);
+    openAllUsersJobsModal(); // BUG FIX: Refresh the panel to show the Unban button
 }
 
 async function unbanUser(uid, userName) {
     if(!confirm(`Unban ${userName}?`)) return;
     await deleteDoc(doc(db, "banned_users", uid));
     alert(`${userName} has been unbanned.`);
+    openAllUsersJobsModal(); // BUG FIX: Refresh the panel to show the Ban button
 }
 
 async function deleteUserData(uid, userName) {
@@ -665,6 +669,11 @@ async function openAllUsersJobsModal() {
     document.getElementById('all-users-modal').classList.remove('hidden');
 
     try {
+        // BUG FIX: Fetch banned users FIRST so we know which button to show
+        const bannedSnap = await getDocs(collection(db, "banned_users"));
+        let bannedUids = [];
+        bannedSnap.forEach(doc => bannedUids.push(doc.id));
+
         const usersSnap = await getDocs(collection(db, "users"));
         let allUsers = [];
         usersSnap.forEach(doc => allUsers.push(doc.data()));
@@ -700,6 +709,12 @@ async function openAllUsersJobsModal() {
             const userJobs = jobsByUid[userUid] || [];
             const activeJobs = userJobs.filter(j => !j.isArchived);
             
+            // BUG FIX: Only show one button depending on their ban status!
+            const isBanned = bannedUids.includes(userUid);
+            const banButtonHtml = isBanned ? 
+                `<button class="btn-success btn-small" style="padding: 4px 10px;" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>` : 
+                `<button class="btn-warning btn-small" style="padding: 4px 10px;" onclick="banUser('${userUid}', '${userName}')">Ban</button>`;
+
             const userDiv = document.createElement('div');
             userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
             
@@ -718,8 +733,7 @@ async function openAllUsersJobsModal() {
                     <span style="color: var(--primary); font-weight: bold;">${activeJobs.length} Active ▼</span>
                 </div>
                 <div style="display: flex; gap: 5px; justify-content: flex-end; padding-top: 5px; border-top: 1px solid var(--border-color);">
-                    <button class="btn-warning btn-small" style="padding: 4px 10px;" onclick="banUser('${userUid}', '${userName}')">Ban</button>
-                    <button class="btn-success btn-small" style="padding: 4px 10px;" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>
+                    ${banButtonHtml}
                     <button class="btn-danger btn-small" style="padding: 4px 10px;" onclick="deleteUserData('${userUid}', '${userName}')">Wipe Data</button>
                 </div>
             `;
@@ -793,7 +807,7 @@ async function cloneJob(firebaseId) {
     newJob.owner = currentUserName;
     newJob.ownerUid = currentUserUid;
     newJob.title = (newJob.title || 'Untitled') + " (Imported)";
-    newJob.isShared = false; // Never share imported jobs by default!
+    newJob.isShared = false; 
     
     if(newJob.tasks) {
         newJob.tasks.forEach((t, i) => {
@@ -867,6 +881,7 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
+// BUG FIX: Print system properly unhides and hides the print area
 function printSingleJob() {
     const job = jobs.find(j => j.id === currentJobId);
     if(!job) return;
@@ -896,10 +911,23 @@ function printSingleJob() {
     html += `</div>`;
     
     printArea.innerHTML = html;
-    setTimeout(() => { window.print(); }, 100);
+    printArea.classList.remove('hidden'); 
+    setTimeout(() => { 
+        window.print(); 
+        printArea.classList.add('hidden'); 
+    }, 100);
 }
 
-function executePrint() { document.getElementById('real-print-area').innerHTML = document.getElementById('print-preview-area').innerHTML; setTimeout(() => { window.print(); }, 100); }
+// BUG FIX: Print system properly unhides and hides the print area
+function executePrint() { 
+    const printArea = document.getElementById('real-print-area');
+    printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
+    printArea.classList.remove('hidden'); 
+    setTimeout(() => { 
+        window.print(); 
+        printArea.classList.add('hidden'); 
+    }, 100); 
+}
 
 // --- MODAL LOGIC FOR ABOUT & WEB-FETCH CHANGELOG ---
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }

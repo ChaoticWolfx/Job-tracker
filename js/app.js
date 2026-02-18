@@ -66,6 +66,18 @@ onAuthStateChanged(auth, async (user) => {
         
         currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
         
+        // --- Save their profile to the database so Admin can see them ---
+        try {
+            await setDoc(doc(db, "users", currentUserUid), {
+                uid: currentUserUid,
+                name: currentUserName,
+                email: currentUserEmail,
+                photoURL: currentUserPhoto,
+                lastLogin: Date.now()
+            }, { merge: true });
+        } catch(e) { console.error("Could not save user profile:", e); }
+        // ---------------------------------------------------------------------
+
         document.getElementById('user-profile-pic').src = currentUserPhoto;
         document.getElementById('user-profile-pic').classList.remove('hidden');
         document.getElementById('settings-profile-pic').src = currentUserPhoto;
@@ -507,49 +519,64 @@ async function deleteUserData(uid, userName) {
     openAllUsersJobsModal(); 
 }
 
-
-// --- CLOUD ADMIN OVERVIEW LOGIC WITH BANNING ---
+// --- CLOUD ADMIN OVERVIEW LOGIC WITH PROFILES & BANNING ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
-    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company jobs from Cloud...</p>';
+    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company users and jobs...</p>';
     document.getElementById('all-users-modal').classList.remove('hidden');
 
     try {
-        const querySnapshot = await getDocs(collection(db, "jobs"));
-        container.innerHTML = '';
+        const usersSnap = await getDocs(collection(db, "users"));
+        let allUsers = [];
+        usersSnap.forEach(doc => allUsers.push(doc.data()));
+
+        const jobsSnap = await getDocs(collection(db, "jobs"));
+        let jobsByUid = {};
         adminViewJobs = []; 
         
-        let usersData = {};
-        querySnapshot.forEach((doc) => {
+        jobsSnap.forEach((doc) => {
             const data = doc.data();
             data.firebaseId = doc.id; 
             adminViewJobs.push(data); 
 
-            const owner = data.owner || "Unknown User";
-            const uid = data.ownerUid || "unknown-uid";
-            if(!usersData[owner]) usersData[owner] = { uid: uid, jobs: [] };
-            usersData[owner].jobs.push(data);
+            const uid = data.ownerUid;
+            if(uid) {
+                if(!jobsByUid[uid]) jobsByUid[uid] = [];
+                jobsByUid[uid].push(data);
+            }
         });
 
-        if (Object.keys(usersData).length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--gray); margin-top: 20px;">No jobs found in Cloud.</p>';
+        container.innerHTML = '';
+        if (allUsers.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--gray); margin-top: 20px;">No users found. Log out and log back in to register your profile!</p>';
             return;
         }
 
-        for (const [owner, userData] of Object.entries(usersData)) {
-            const userName = owner.charAt(0).toUpperCase() + owner.slice(1);
-            const activeJobs = userData.jobs.filter(j => !j.isArchived);
+        allUsers.forEach((userData) => {
+            const userName = userData.name || "Unknown User";
+            const userEmail = userData.email || "No email";
             const userUid = userData.uid;
+            const userPhoto = userData.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=random`;
+            
+            const userJobs = jobsByUid[userUid] || [];
+            const activeJobs = userJobs.filter(j => !j.isArchived);
             
             const userDiv = document.createElement('div');
             userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--border-color)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
             
             const userHeader = document.createElement('div');
-            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.display = 'flex'; userHeader.style.flexDirection = 'column'; userHeader.style.gap = '10px';
+            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.display = 'flex'; userHeader.style.flexDirection = 'column'; userHeader.style.gap = '10px';
             
             userHeader.innerHTML = `
                 <div style="display: flex; justify-content: space-between; cursor: pointer; align-items: center;" id="toggle-${userUid}">
-                    <span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="${userPhoto}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
+                        <div style="line-height: 1.2;">
+                            <strong style="font-size: 15px;">${userName}</strong><br>
+                            <span style="font-size: 12px; color: var(--gray); font-weight: normal;">${userEmail}</span>
+                        </div>
+                    </div>
+                    <span style="color: var(--primary); font-weight: bold;">${activeJobs.length} Active ▼</span>
                 </div>
                 <div style="display: flex; gap: 5px; justify-content: flex-end; padding-top: 5px; border-top: 1px solid var(--border-color);">
                     <button class="btn-warning btn-small" style="padding: 4px 10px;" onclick="banUser('${userUid}', '${userName}')">Ban</button>
@@ -562,7 +589,7 @@ async function openAllUsersJobsModal() {
             jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'var(--card-bg)';
             
             if (activeJobs.length === 0) {
-                jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">No active jobs.</em></div>';
+                jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">User has not created any active jobs.</em></div>';
             } else {
                 activeJobs.forEach(job => {
                     const tasks = job.tasks || [];
@@ -606,7 +633,7 @@ async function openAllUsersJobsModal() {
                 jobsListContainer.style.display = jobsListContainer.style.display === 'none' ? 'block' : 'none';
             };
             userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
-        }
+        });
     } catch (e) {
         container.innerHTML = `<p style="color: red; text-align: center; margin-top: 20px;">Error connecting to Cloud: ${e.message}</p>`;
     }

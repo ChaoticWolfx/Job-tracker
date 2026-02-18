@@ -1,0 +1,4 @@
+v2.4 Update (The Integrations Update)
+- Google Calendar Sync: You can now securely link your Google Calendar! Look for the new 'Sync to Google Calendar' checkbox when creating jobs or assigning due dates to tasks.
+- Shareable Links: Added a new blue 'Share' button to the top of every job. Clicking it generates a unique, secure web link copied straight to your clipboard.
+- Client View: Anyone who opens a Shared Link will see a clean, professional "Read-Only" version of the job to track task progress—no app login required!

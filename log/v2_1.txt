@@ -1,0 +1,4 @@
+v2.1 Update
+- Admin Feature added: "Clone Job to My List"
+- While viewing all company jobs in the Admin Overview, you can now press the new 'Import' button next to any user's job.
+- This securely duplicates the job template and all of its tasks, automatically assigning you ownership so it appears instantly on your personal Home screen.

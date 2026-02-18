@@ -1,0 +1,4 @@
+v1.5 Update
+- Changed log files from .txt to .js to bypass Android's local security blocks.
+- Completely rebuilt the print function for Android compatibility.
+- Print now generates a root-level invisible element to force the Android spooler to open.

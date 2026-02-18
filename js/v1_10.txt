@@ -1,0 +1,7 @@
+v1.10 Update
+- Drag & Drop: You can now press-and-hold to drag Jobs and Tasks up or down to organize them.
+- Quick Delete: Added a red 'X' to Job cards on the home screen for faster cleanup.
+- Admin Upgrade: You can now tap on jobs inside the Admin view to reveal a dropdown list of specific tasks.
+- Priorities: Added High, Normal, and Low priority tags to Jobs and Tasks.
+- Team Management: Added 'My Team' menu. You can now save people and assign Jobs to them.
+- Log Moved: The Change Updates Log link is now available on the front login page.

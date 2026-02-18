@@ -1,0 +1,4 @@
+v1.9 Update
+- Bug Fix: Restored the Due Date functionality and logic that got stripped out during recent code compression.
+- Bug Fix: Restored the ongoing Notes text box for individual tasks.
+- Updated Print feature to correctly display newly added Due Dates and Notes.

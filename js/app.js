@@ -789,3 +789,33 @@ window.moveTask = moveTask;
 window.updateTaskStatus = updateTaskStatus;
 window.updateTaskNotes = updateTaskNotes;
 window.viewJob = viewJob;
+
+// --- ADMIN USER MANAGEMENT ---
+async function banUser(uid, userName) {
+    if(!confirm(`Ban ${userName}? They will be immediately locked out of the app.`)) return;
+    await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName });
+    alert(`${userName} has been banned.`);
+}
+
+async function unbanUser(uid, userName) {
+    if(!confirm(`Unban ${userName}?`)) return;
+    await deleteDoc(doc(db, "banned_users", uid));
+    alert(`${userName} has been unbanned.`);
+}
+
+async function deleteUserData(uid, userName) {
+    if(!confirm(`⚠️ PERMANENTLY delete ALL jobs and team data for ${userName}? This CANNOT be undone.`)) return;
+    
+    // Find and delete all jobs owned by this UID
+    const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", uid));
+    const snapJobs = await getDocs(qJobs);
+    snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id)));
+    
+    // Find and delete all team members owned by this UID
+    const qTeam = query(collection(db, "team"), where("ownerUid", "==", uid));
+    const snapTeam = await getDocs(qTeam);
+    snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id)));
+    
+    alert(`All data for ${userName} has been permanently wiped from the cloud.`);
+    openAllUsersJobsModal(); // Refresh the list
+}

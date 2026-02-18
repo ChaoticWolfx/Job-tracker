@@ -1,0 +1,5 @@
+v1.3 Update
+- Moved the Print feature into a dedicated popup window (modal).
+- Added a simple "Include Archives" toggle directly inside the Print window.
+- Cleaned up the print view so it only shows formatted text for tasks (Complete, In Progress, Not Started).
+- Connected the Change Updates log to pull dynamically from external .txt files.

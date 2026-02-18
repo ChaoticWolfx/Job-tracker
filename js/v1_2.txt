@@ -1,0 +1,4 @@
+v1.2 Update
+- Fixed an issue where adding a new job while viewing archives left you stuck in the archive view.
+- Added a Print button to the main screen to generate physical lists.
+- Added a prompt to choose whether to include or exclude archived jobs when printing.

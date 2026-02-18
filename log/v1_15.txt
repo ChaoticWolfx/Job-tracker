@@ -1,0 +1,4 @@
+v1.15 Update (The Cloud Sync)
+- App Data is now securely linked to Firebase Cloud Storage. 
+- Auto-Migration built-in: Local phone data is now automatically detected, pushed to the cloud, and synced across devices.
+- The Admin Overview has been upgraded to scan the live cloud database instead of just local device memory.

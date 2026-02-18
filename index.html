@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Job Tracker v2.2</title>
+    <title>Job Tracker v2.3</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -51,6 +51,22 @@
                 </div>
             </div>
 
+            <div id="shared-job-view" class="hidden">
+                <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <button class="btn btn-primary btn-small" onclick="window.location.href=window.location.pathname">← Go to Main App</button>
+                    <button class="btn btn-info btn-small" onclick="window.print()">🖨️ Print</button>
+                </div>
+                
+                <div style="background: var(--card-bg); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <span style="font-size: 12px; font-weight: bold; color: var(--primary); text-transform: uppercase;">Shared Document</span>
+                    <h2 id="shared-job-title" style="margin-top: 5px; margin-bottom: 5px;"></h2>
+                    <p id="shared-job-owner" style="color: var(--gray); font-size: 14px;"></p>
+                </div>
+                
+                <h3 style="margin-bottom: 10px;">Tasks Overview</h3>
+                <div id="shared-tasks-container"></div>
+            </div>
+
             <div id="home-view" class="hidden">
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary btn-small" onclick="openAddJobModal()" style="margin: 0; flex: 1;">+ Add Job</button>
@@ -69,8 +85,9 @@
             <div id="job-detail-view" class="hidden">
                 <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                     <button class="btn btn-small" style="background: var(--light-gray); border: 1px solid var(--border-color); color: var(--text);" onclick="goHome()">← Back</button>
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-info btn-small" onclick="printSingleJob()">🖨️ Print Job</button>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="btn btn-primary btn-small" id="share-job-btn" onclick="shareCurrentJob()">🔗 Share</button>
+                        <button class="btn btn-info btn-small" onclick="printSingleJob()">🖨️ Print</button>
                         <button class="btn btn-warning btn-small" onclick="archiveCurrentJob()">Archive</button>
                         <button class="btn btn-danger btn-small" onclick="deleteCurrentJob()">Delete</button>
                     </div>
@@ -98,12 +115,18 @@
                         </select>
                     </div>
 
-                    <label style="font-size: 14px; margin-top: 10px; display: block;">
-                        <input type="checkbox" id="new-task-has-date" onchange="toggleDateField()" style="width: auto;"> Add Due Date?
-                    </label>
-                    <input type="date" id="new-task-date" class="hidden">
+                    <div style="display: flex; gap: 15px; margin-top: 15px; align-items: center; flex-wrap: wrap;">
+                        <label style="font-size: 14px;">
+                            <input type="checkbox" id="new-task-has-date" onchange="toggleDateField()" style="width: auto; transform: scale(1.2);"> Add Due Date?
+                        </label>
+                        <label id="task-calendar-wrapper" style="font-size: 14px; color: var(--primary); display: none;">
+                            <input type="checkbox" id="new-task-calendar-sync" style="width: auto; transform: scale(1.2);"> 📅 Sync to Google Calendar
+                        </label>
+                    </div>
                     
-                    <button class="btn btn-primary" onclick="addTask()">Save Task</button>
+                    <input type="date" id="new-task-date" class="hidden" style="margin-top: 10px;">
+                    
+                    <button class="btn btn-primary" onclick="addTask()" style="margin-top: 15px;">Save Task</button>
                 </div>
             </div>
         </div>
@@ -153,6 +176,12 @@
             <select id="add-job-assignee">
                 <option value="">Myself (Unassigned)</option>
             </select>
+
+            <label id="job-calendar-wrapper" style="font-weight: bold; font-size: 14px; margin-top: 15px; color: var(--primary); display: none; align-items: center; gap: 8px;">
+                <input type="checkbox" id="add-job-calendar-sync" style="width: auto; transform: scale(1.3); margin: 0;">
+                📅 Create Google Calendar Event
+            </label>
+
             <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveNewJob()">Create Job</button>
         </div>
     </div>
@@ -230,6 +259,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js?v=phase3"></script>
 </body>
 </html>

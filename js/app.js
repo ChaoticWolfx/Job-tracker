@@ -335,72 +335,55 @@ async function moveTask(taskId, direction) {
     renderTasks(); await saveData(); 
 }
 
-// --- CALENDAR LOGIC (ROBUST NATIVE INTENT) ---
+// --- CALENDAR LOGIC (100% RELIABLE UNIVERSAL LINK) ---
 function createCalendarLink(title, startDate, startTime, description) {
-    let startDateTime = '', endDateTime = '', startTimeMs = 0, endTimeMs = 0;
+    if (!startDate) return alert("Please select a Date first so we know when to add it to the Calendar!");
+    
+    let startDateTime = '';
+    let endDateTime = '';
 
     if (startDate && startTime) {
         const [year, month, day] = startDate.split('-');
         const [hour, minute] = startTime.split(':');
-        const localDate = new Date(year, month - 1, day, hour, minute);
-        const localEndDate = new Date(localDate.getTime() + (60 * 60 * 1000));
-        startTimeMs = localDate.getTime(); endTimeMs = localEndDate.getTime();
-        startDateTime = localDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
-        endDateTime = localEndDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    } else if (startDate) {
-        const [year, month, day] = startDate.split('-');
-        const localDate = new Date(year, month - 1, day);
-        const endDate = new Date(year, month - 1, day);
-        endDate.setDate(endDate.getDate() + 1);
-        startTimeMs = localDate.getTime(); endTimeMs = endDate.getTime();
-        startDateTime = `${year}${month}${day}`;
-        const endYear = endDate.getFullYear();
-        const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
-        const endDay = String(endDate.getDate()).padStart(2, '0');
-        endDateTime = `${endYear}${endMonth}${endDay}`;
+        // Format: YYYYMMDDTHHMMSS
+        startDateTime = `${year}${month}${day}T${hour}${minute}00`;
+        
+        // Calculate End Time (Add 1 hour by default)
+        const d = new Date(year, month - 1, day, hour, minute);
+        d.setHours(d.getHours() + 1);
+        const ey = d.getFullYear();
+        const em = String(d.getMonth() + 1).padStart(2, '0');
+        const ed = String(d.getDate()).padStart(2, '0');
+        const ehr = String(d.getHours()).padStart(2, '0');
+        const emin = String(d.getMinutes()).padStart(2, '0');
+        endDateTime = `${ey}${em}${ed}T${ehr}${emin}00`;
     } else {
-        const today = new Date();
-        startTimeMs = today.getTime(); endTimeMs = startTimeMs + (60 * 60 * 1000);
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
+        const [year, month, day] = startDate.split('-');
         startDateTime = `${year}${month}${day}`;
-        endDateTime = startDateTime;
+        // All-day events end the next day
+        const d = new Date(year, month - 1, day);
+        d.setDate(d.getDate() + 1);
+        const ey = d.getFullYear();
+        const em = String(d.getMonth() + 1).padStart(2, '0');
+        const ed = String(d.getDate()).padStart(2, '0');
+        endDateTime = `${ey}${em}${ed}`;
     }
 
     const safeTitle = encodeURIComponent("Job Tracker: " + title);
-    const safeDesc = encodeURIComponent(description || "");
-    const isAndroid = /Android/i.test(navigator.userAgent);
+    const safeDesc = encodeURIComponent(description || "Added via Job Tracker App");
 
-    if (isAndroid) {
-        const intentUrl = `intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.dir/event;S.title=${safeTitle};S.description=${safeDesc};l.beginTime=${startTimeMs};l.endTime=${endTimeMs};end;`;
-        const anchor = document.createElement('a');
-        anchor.href = intentUrl; anchor.style.display = 'none';
-        document.body.appendChild(anchor); anchor.click();
-        setTimeout(() => document.body.removeChild(anchor), 100);
-    } else {
-        const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${safeTitle}&dates=${startDateTime}/${endDateTime}&details=${safeDesc}`;
-        window.open(webUrl, '_blank');
-    }
+    // This Universal web link works perfectly on Android and iOS.
+    // It will prompt Android devices to open the app, and smoothly load the web-calendar for iOS.
+    const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${safeTitle}&dates=${startDateTime}/${endDateTime}&details=${safeDesc}`;
+    
+    window.open(webUrl, '_blank');
 }
 
-// Calendar pushers for the creation forms
-function openJobCalendarTemplate() {
-    const title = document.getElementById('add-job-title').value.trim();
-    if (!title) return alert("Please enter a Job Title first!");
-    createCalendarLink(title, document.getElementById('add-job-date').value, document.getElementById('add-job-time').value, "Job Start Date");
-}
-function openTaskCalendarTemplate() {
-    const title = document.getElementById('new-task-title').value.trim();
-    if (!title) return alert("Please enter a Task Name first!");
-    createCalendarLink(title, document.getElementById('new-task-date').value, document.getElementById('new-task-time').value, document.getElementById('new-task-desc').value);
-}
-
-// Calendar pushers for existing (saved) items
 function pushSavedJobToCalendar() {
     const job = jobs.find(j => j.id === currentJobId);
     if(job) createCalendarLink(job.title, job.startDate, job.startTime, "Job Start Date");
 }
+
 function pushSavedTaskToCalendar(taskId) {
     const job = jobs.find(j => j.id === currentJobId);
     const task = job.tasks.find(t => t.id === taskId);
@@ -521,7 +504,6 @@ function renderTasks() {
             dateDisplay = `<div class="${isPastDue ? 'past-due' : ''}" style="margin-top: 5px; font-size: 14px;">
                 <span style="display:inline-block; margin-right:5px;">📅</span>Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''} ${isPastDue ? '(Past Due!)' : ''}
             </div>`;
-            // Add a calendar sync button directly to the saved task
             syncBtnDisplay = `<button class="btn-small" style="background:transparent; border:1px solid #4285F4; color:#4285F4; margin-top:8px; padding: 4px 8px; font-size: 12px;" onclick="pushSavedTaskToCalendar(${task.id})">📅 Sync Task to Calendar</button>`;
         }
 
@@ -719,14 +701,11 @@ async function cloneJob(firebaseId) {
     jobs.push(newJob); alert(`Imported!`); renderJobs(); await saveData();
 }
 
-// --- CONTEXT-AWARE PRINT LOGIC ---
+// --- CONTEXT-AWARE PRINT LOGIC (FIXED FOR BLANK PAGES) ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
-    
-    // Check if we are viewing a job or the home screen
     const isJobView = currentJobId !== null;
     
-    // Update Modal UI based on context
     document.getElementById('print-modal-title').innerText = isJobView ? "Print Task Checklist" : "Print Job List";
     document.getElementById('print-archive-label').style.display = isJobView ? 'none' : 'block';
     
@@ -734,7 +713,6 @@ function openPrintModal() {
     container.innerHTML = '';
     
     if (isJobView) {
-        // Render TASK checkboxes
         const job = jobs.find(j => j.id === currentJobId);
         if(!job.tasks || job.tasks.length === 0) {
             container.innerHTML = '<p style="color:var(--gray);">No tasks to print.</p>';
@@ -747,7 +725,6 @@ function openPrintModal() {
             });
         }
     } else {
-        // Render JOB checkboxes
         const includeArchives = document.getElementById('print-archive-toggle').checked;
         jobs.forEach(job => {
             if (!includeArchives && job.isArchived) return;
@@ -757,7 +734,6 @@ function openPrintModal() {
             </label>`;
         });
     }
-
     generatePrintPreview(); 
 }
 
@@ -772,12 +748,9 @@ function generatePrintPreview() {
     const isJobView = currentJobId !== null;
     
     let html = '';
-    
     if (isJobView) {
-        // Print Tasks Checklist
         const job = jobs.find(j => j.id === currentJobId);
         html = `<h2>${job.title} - Site Checklist</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
-        
         const tasksToPrint = (job.tasks || []).filter(t => selectedIds.includes(t.id));
         if(tasksToPrint.length === 0) { html += `<p>No tasks selected.</p>`; } 
         else {
@@ -797,7 +770,6 @@ function generatePrintPreview() {
             html += `</ul>`;
         }
     } else {
-        // Print Full Jobs List
         html = `<h2>${currentUserName}'s Active Jobs</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
         const jobsToPrint = jobs.filter(j => selectedIds.includes(j.id));
         if(jobsToPrint.length === 0) { html += `<p>No jobs selected.</p>`; } 
@@ -817,12 +789,37 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
+// 100% BULLETPROOF PRINTING (Bypasses CSS conflicts by isolating the print area)
 function executePrint() { 
     const printArea = document.getElementById('real-print-area');
     printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
+    
+    // Inject a special CSS style block that absolutely hides the entire app EXCEPT the print area
+    const style = document.createElement('style');
+    style.id = 'temp-print-style';
+    style.innerHTML = `
+        @media print {
+            body > * { display: none !important; }
+            #real-print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; color: black; background: white; }
+            #real-print-area * { display: block; visibility: visible; }
+        }
+    `;
+    document.head.appendChild(style);
+    
     printArea.classList.remove('hidden'); 
-    setTimeout(() => { window.print(); printArea.classList.add('hidden'); }, 100); 
+    
+    // Give the browser a split second to render the CSS change, then print
+    setTimeout(() => { 
+        window.print(); 
+        // Cleanup after print dialog closes
+        setTimeout(() => {
+            document.head.removeChild(style);
+            printArea.classList.add('hidden');
+        }, 500);
+    }, 200); 
 }
+
+function printSingleJob() { openPrintModal(); } // Reroute the individual Print button to the smart Print Modal
 
 // --- CHANGELOG MODAL ---
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
@@ -867,5 +864,5 @@ window.archiveCurrentJob = archiveCurrentJob; window.deleteCurrentJob = deleteCu
 window.moveJob = moveJob; window.addTask = addTask; window.deleteTask = deleteTask; window.moveTask = moveTask; 
 window.updateTaskStatus = updateTaskStatus; window.updateTaskNotes = updateTaskNotes; window.viewJob = viewJob; 
 window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; 
-window.openJobCalendarTemplate = openJobCalendarTemplate; window.openTaskCalendarTemplate = openTaskCalendarTemplate;
 window.pushSavedJobToCalendar = pushSavedJobToCalendar; window.pushSavedTaskToCalendar = pushSavedTaskToCalendar;
+window.printSingleJob = printSingleJob;

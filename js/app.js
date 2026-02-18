@@ -801,29 +801,43 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
+ 
 // 100% BULLETPROOF PRINTING (Mobile Spooler Fix)
 function executePrint() { 
     const printArea = document.getElementById('real-print-area');
     printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
     
-    // Inject a special CSS style block that aggressively hides EVERYTHING except the print area
+    // Close the print modal BEFORE generating the PDF to fix background spacing issues
+    closePrintModal();
+    
+    // Inject a special CSS style block that precisely isolates the print area
     const style = document.createElement('style');
     style.id = 'temp-print-style';
     style.innerHTML = `
         @media print {
-            body > * { display: none !important; }
-            #real-print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; color: black; background: white; }
-            #real-print-area * { display: block; visibility: visible; }
+            /* Hide literally everything in the body EXCEPT the print area */
+            body > *:not(#real-print-area) { 
+                display: none !important; 
+            }
+            /* Use relative positioning so long lists span multiple pages correctly */
+            #real-print-area { 
+                display: block !important; 
+                position: relative !important; 
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
         }
     `;
     document.head.appendChild(style);
     
     printArea.classList.remove('hidden'); 
     
-    // Give the mobile browser time to apply the CSS, then open the print dialog
+    // Give the mobile browser time to apply the CSS and clear the screen, then print
     setTimeout(() => { 
         window.print(); 
-    }, 300); 
+    }, 500); 
 }
 
 // Wait for the user to actually close the PDF/Print screen before cleaning up!
@@ -861,7 +875,6 @@ async function loadMoreLogs() {
     while (loadedThisTime < 2 && currentLogIndex < logFilesList.length) {
         const versionName = logFilesList[currentLogIndex];
         try {
-            // Cache buster ensures it pulls your latest text file changes
             const response = await fetch(`log/${versionName}.txt?v=${Date.now()}`);
             if (!response.ok) throw new Error("File not found");
             
@@ -880,7 +893,6 @@ async function loadMoreLogs() {
             container.innerHTML += html;
             loadedThisTime++; 
         } catch (e) {
-            // Silently skip if the file hasn't been created in GitHub yet
             console.warn(`Missing file: log/${versionName}.txt`);
         }
         currentLogIndex++;

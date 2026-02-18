@@ -343,25 +343,40 @@ async function moveTask(taskId, direction) {
 function createCalendarLink(title, startDate, startTime, description) {
     let startDateTime = '';
     let endDateTime = '';
+    let startTimeMs = 0;
+    let endTimeMs = 0;
 
     if (startDate && startTime) {
         const [year, month, day] = startDate.split('-');
         const [hour, minute] = startTime.split(':');
         const localDate = new Date(year, month - 1, day, hour, minute);
-        const localEndDate = new Date(localDate.getTime() + (60 * 60 * 1000));
+        const localEndDate = new Date(localDate.getTime() + (60 * 60 * 1000)); // Add 1 hour
+        
+        // Save exact milliseconds for the Android Native App
+        startTimeMs = localDate.getTime();
+        endTimeMs = localEndDate.getTime();
+        
         startDateTime = localDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
         endDateTime = localEndDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
     } else if (startDate) {
         const [year, month, day] = startDate.split('-');
-        startDateTime = `${year}${month}${day}`;
+        const localDate = new Date(year, month - 1, day);
         const endDate = new Date(year, month - 1, day);
         endDate.setDate(endDate.getDate() + 1);
+        
+        startTimeMs = localDate.getTime();
+        endTimeMs = endDate.getTime();
+        
+        startDateTime = `${year}${month}${day}`;
         const endYear = endDate.getFullYear();
         const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
         const endDay = String(endDate.getDate()).padStart(2, '0');
         endDateTime = `${endYear}${endMonth}${endDay}`;
     } else {
         const today = new Date();
+        startTimeMs = today.getTime();
+        endTimeMs = startTimeMs + (60 * 60 * 1000);
+        
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
@@ -369,17 +384,20 @@ function createCalendarLink(title, startDate, startTime, description) {
         endDateTime = startDateTime;
     }
 
-    const params = `&text=${encodeURIComponent("Job Tracker: " + title)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description || "Added via Job Tracker App")}`;
-    const webUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE' + params;
+    const safeTitle = encodeURIComponent("Job Tracker: " + title);
+    const safeDesc = encodeURIComponent(description || "Added via Job Tracker App");
 
     // --- SMART DEVICE DETECTION ---
     const isAndroid = /Android/i.test(navigator.userAgent);
 
     if (isAndroid) {
-        const fallbackUrl = encodeURIComponent(webUrl);
-        const intentUrl = `intent://calendar.google.com/calendar/render?action=TEMPLATE${params}#Intent;scheme=https;package=com.google.android.calendar;S.browser_fallback_url=${fallbackUrl};end;`;
+        // TRUE NATIVE ANDROID INTENT
+        // This bypasses the web entirely and forces the phone's OS to open the Calendar App
+        const intentUrl = `intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.dir/event;S.title=${safeTitle};S.description=${safeDesc};l.beginTime=${startTimeMs};l.endTime=${endTimeMs};end;`;
         window.location.href = intentUrl;
     } else {
+        // Web fallback for iOS and Desktop
+        const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${safeTitle}&dates=${startDateTime}/${endDateTime}&details=${safeDesc}`;
         window.open(webUrl, '_blank');
     }
 }

@@ -1,0 +1,4 @@
+v1.4 Update
+- Re-coded the print sequence to fix an issue where the Android print spooler was failing to open.
+- Refactored HTML structure to allow the print modal to flatten seamlessly for mobile printing.
+- Updated the log array to use underscores (e.g., v1_0.txt) to prevent web browsers from confusing file names with file extensions.

@@ -1,0 +1,5 @@
+v2.3 Update (The Admin & Directory Update)
+- Global User Directory: The Admin Overview now securely fetches and displays all registered users in the company, even if they haven't created a job yet.
+- Profile Visibility: Admins can now see user profile pictures and email addresses directly from the overview panel.
+- The Ban Protocol: Admins can securely ban and unban users, instantly locking them out of the app and database without deleting their existing work.
+- Data Wipe Protocol: Added a permanent 'Wipe Data' function for Admins to completely erase a user and all of their associated jobs, tasks, and team members from the cloud.

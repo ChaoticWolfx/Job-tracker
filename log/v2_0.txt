@@ -1,0 +1,5 @@
+v2.0 Update (The Security Update)
+- Massive Security Upgrade: Integrated Firebase Authentication to replace the basic name login with secure Email/Password and Google Sign-In options.
+- The Vault: Implemented strict cloud database rules. Users can now only view, edit, and manage their own specific jobs and team members.
+- Master Admin Mode: Hardcoded a secure 'God Mode' bypass for the app owner. The Admin Overview now exclusively unlocks for the Master Account, allowing full read/write access to every job across the entire company.
+- UI Overhaul: Redesigned the main login screen to accommodate the new authentication gateways.

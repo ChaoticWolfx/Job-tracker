@@ -1,0 +1,6 @@
+v1.0 Launch
+- Initial release of the Job Tracker Progressive Web App.
+- Built ability to create, view, and delete overarching Jobs.
+- Built ability to add, delete, and update the status of individual Tasks.
+- Added optional Due Dates for tasks.
+- Integrated automatic local saving so no progress is lost when closing the app.

@@ -1,6 +1,6 @@
 // Import Firebase & Auth directly from the web
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // Your specific Firebase configuration
@@ -19,6 +19,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+// NEW: Request access to the user's Google Calendar!
+googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
 
 // Master Admin Security Key
 const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
@@ -28,11 +30,63 @@ let currentUserUid = null;
 let currentUserEmail = null;
 let currentUserName = null;
 let currentUserPhoto = null;
+let googleAccessToken = sessionStorage.getItem('googleAccessToken') || null; // For Calendar Sync
 let jobs = [];
 let teamMembers = [];
 let adminViewJobs = []; 
 let currentJobId = null;
 let viewingArchives = false;
+
+// --- SHARED LINK ROUTING ---
+// Check if someone clicked a shared link BEFORE showing the login screen
+const urlParams = new URLSearchParams(window.location.search);
+const sharedJobId = urlParams.get('job');
+
+if (sharedJobId) {
+    document.getElementById('login-view').classList.add('hidden');
+    loadSharedJob(sharedJobId);
+}
+
+async function loadSharedJob(firebaseDocId) {
+    try {
+        const docRef = doc(db, "jobs", firebaseDocId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().isShared === true) {
+            const jobData = docSnap.data();
+            document.getElementById('shared-job-view').classList.remove('hidden');
+            document.getElementById('shared-job-title').innerText = jobData.title || "Untitled Job";
+            document.getElementById('shared-job-owner').innerText = "Created by: " + (jobData.owner || "Unknown User");
+            
+            const container = document.getElementById('shared-tasks-container');
+            container.innerHTML = '';
+            
+            if(!jobData.tasks || jobData.tasks.length === 0) {
+                container.innerHTML = '<p style="color:var(--gray);">No tasks found.</p>';
+            } else {
+                jobData.tasks.forEach(task => {
+                    let color = task.status === 'Complete' ? 'var(--success)' : (task.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
+                    let dateStr = (task.hasDate && task.dueDate) ? `<br><span style="font-size:13px; color:#d9534f;">📅 Due: ${task.dueDate}</span>` : '';
+                    let asgn = task.assignedTo ? `<br><span style="font-size:13px; color:var(--primary);">👤 ${task.assignedTo}</span>` : '';
+                    let desc = task.desc ? `<p style="font-size:14px; color:var(--gray); margin-top:5px;">${task.desc}</p>` : '';
+                    
+                    container.innerHTML += `
+                        <div style="background:var(--light-gray); padding:15px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border-color);">
+                            <strong>${task.title}</strong> <span style="color:${color}; font-size:12px; font-weight:bold; float:right;">[${task.status}]</span>
+                            ${desc}${asgn}${dateStr}
+                        </div>
+                    `;
+                });
+            }
+        } else {
+            alert("This job link is invalid or is no longer being shared.");
+            window.location.href = window.location.pathname; // Redirect to normal login
+        }
+    } catch (e) {
+        alert("Error loading shared job. It may be private or deleted.");
+        window.location.href = window.location.pathname;
+    }
+}
 
 // --- THEME LOGIC ---
 function loadThemePreference() {
@@ -53,70 +107,78 @@ function toggleDarkMode() {
         localStorage.setItem('jobTrackerDarkMode', 'false');
     }
 }
-
 loadThemePreference();
 
-
 // --- AUTHENTICATION STATE OBSERVER ---
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUserUid = user.uid;
-        currentUserEmail = user.email;
-        currentUserName = user.displayName || user.email.split('@')[0]; 
-        
-        currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
-        
-        // --- Save their profile to the database so Admin can see them ---
-        try {
-            await setDoc(doc(db, "users", currentUserUid), {
-                uid: currentUserUid,
-                name: currentUserName,
-                email: currentUserEmail,
-                photoURL: currentUserPhoto,
-                lastLogin: Date.now()
-            }, { merge: true });
-        } catch(e) { console.error("Could not save user profile:", e); }
-        // ---------------------------------------------------------------------
+if (!sharedJobId) { // Only run auth observer if we aren't looking at a shared link
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUserUid = user.uid;
+            currentUserEmail = user.email;
+            currentUserName = user.displayName || user.email.split('@')[0]; 
+            
+            currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
+            
+            try {
+                await setDoc(doc(db, "users", currentUserUid), {
+                    uid: currentUserUid,
+                    name: currentUserName,
+                    email: currentUserEmail,
+                    photoURL: currentUserPhoto,
+                    lastLogin: Date.now()
+                }, { merge: true });
+            } catch(e) { console.error("Could not save user profile:", e); }
 
-        document.getElementById('user-profile-pic').src = currentUserPhoto;
-        document.getElementById('user-profile-pic').classList.remove('hidden');
-        document.getElementById('settings-profile-pic').src = currentUserPhoto;
-        document.getElementById('settings-user-name').innerText = currentUserName;
-        document.getElementById('settings-user-email').innerText = currentUserEmail;
+            document.getElementById('user-profile-pic').src = currentUserPhoto;
+            document.getElementById('user-profile-pic').classList.remove('hidden');
+            document.getElementById('settings-profile-pic').src = currentUserPhoto;
+            document.getElementById('settings-user-name').innerText = currentUserName;
+            document.getElementById('settings-user-email').innerText = currentUserEmail;
 
-        if (currentUserUid === ADMIN_UID) {
-            document.getElementById('admin-overview-btn').classList.remove('hidden');
+            // Unhide Calendar options if they logged in with Google AND we have a token
+            if (googleAccessToken) {
+                document.getElementById('job-calendar-wrapper').style.display = 'flex';
+                document.getElementById('task-calendar-wrapper').style.display = 'inline-block';
+            }
+
+            if (currentUserUid === ADMIN_UID) {
+                document.getElementById('admin-overview-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-overview-btn').classList.add('hidden');
+            }
+
+            await loadData();
+            
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('home-view').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            document.getElementById('app-footer').classList.remove('hidden');
+            document.getElementById('header-title').innerText = currentUserName + "'s Jobs";
+            
+            viewingArchives = false;
+            renderJobs();
         } else {
+            currentUserUid = null;
+            currentUserName = null;
+            currentUserPhoto = null;
+            jobs = [];
+            teamMembers = [];
+            googleAccessToken = null;
+            sessionStorage.removeItem('googleAccessToken');
+            
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('job-detail-view').classList.add('hidden');
+            document.getElementById('logout-btn').classList.add('hidden');
+            document.getElementById('user-profile-pic').classList.add('hidden');
+            document.getElementById('app-footer').classList.add('hidden');
             document.getElementById('admin-overview-btn').classList.add('hidden');
+            document.getElementById('header-title').innerText = "Job Tracker";
+            document.getElementById('job-calendar-wrapper').style.display = 'none';
+            document.getElementById('task-calendar-wrapper').style.display = 'none';
         }
-
-        await loadData();
-        
-        document.getElementById('login-view').classList.add('hidden');
-        document.getElementById('home-view').classList.remove('hidden');
-        document.getElementById('logout-btn').classList.remove('hidden');
-        document.getElementById('app-footer').classList.remove('hidden');
-        document.getElementById('header-title').innerText = currentUserName + "'s Jobs";
-        
-        viewingArchives = false;
-        renderJobs();
-    } else {
-        currentUserUid = null;
-        currentUserName = null;
-        currentUserPhoto = null;
-        jobs = [];
-        teamMembers = [];
-        
-        document.getElementById('login-view').classList.remove('hidden');
-        document.getElementById('home-view').classList.add('hidden');
-        document.getElementById('job-detail-view').classList.add('hidden');
-        document.getElementById('logout-btn').classList.add('hidden');
-        document.getElementById('user-profile-pic').classList.add('hidden');
-        document.getElementById('app-footer').classList.add('hidden');
-        document.getElementById('admin-overview-btn').classList.add('hidden');
-        document.getElementById('header-title').innerText = "Job Tracker";
-    }
-});
+    });
+}
 
 // --- LOGIN COMMANDS ---
 async function loginWithEmail() {
@@ -130,7 +192,16 @@ async function loginWithEmail() {
 
 async function loginWithGoogle() {
     try {
-        await signInWithPopup(auth, googleProvider);
+        const result = await signInWithPopup(auth, googleProvider);
+        // NEW: Capture the Google Access Token for Calendar Sync!
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential && credential.accessToken) {
+            googleAccessToken = credential.accessToken;
+            sessionStorage.setItem('googleAccessToken', googleAccessToken);
+            // Show calendar checkboxes
+            document.getElementById('job-calendar-wrapper').style.display = 'flex';
+            document.getElementById('task-calendar-wrapper').style.display = 'inline-block';
+        }
     } catch(e) { alert("Google login failed: " + e.message); }
 }
 
@@ -139,7 +210,6 @@ async function logout() { await signOut(auth); }
 // --- SETTINGS MODAL ---
 function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
 function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
-
 
 // --- SECURE CLOUD LOAD LOGIC ---
 async function loadData() { 
@@ -289,6 +359,42 @@ async function moveTask(taskId, direction) {
     renderTasks(); await saveData(); 
 }
 
+// --- GOOGLE CALENDAR SYNC LOGIC ---
+async function createCalendarEvent(title, date, description) {
+    if (!googleAccessToken) return; // Silent fail if not signed in with Google
+    
+    const event = {
+        summary: `Job Tracker: ${title}`,
+        description: description || "Added via Job Tracker App",
+    };
+    
+    if (date) {
+        event.start = { date: date };
+        event.end = { date: date }; // Setting both to date makes it an 'All Day' event
+    } else {
+        const today = new Date().toISOString().split('T')[0];
+        event.start = { date: today };
+        event.end = { date: today };
+    }
+
+    try {
+        const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + googleAccessToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(event)
+        });
+        
+        if(response.ok) {
+            alert('📅 Successfully added to your Google Calendar!');
+        } else {
+            console.error('Calendar sync error');
+        }
+    } catch(e) { console.error('Failed to sync to calendar', e); }
+}
+
 // --- Jobs Logic ---
 function toggleArchives() {
     viewingArchives = !viewingArchives;
@@ -342,6 +448,7 @@ function openAddJobModal() {
     populateDropdowns();
     document.getElementById('add-job-title').value = '';
     document.getElementById('add-job-priority').value = 'Normal';
+    if(document.getElementById('add-job-calendar-sync')) document.getElementById('add-job-calendar-sync').checked = false;
     document.getElementById('add-job-modal').classList.remove('hidden');
 }
 function closeAddJobModal() { document.getElementById('add-job-modal').classList.add('hidden'); }
@@ -350,13 +457,40 @@ async function saveNewJob() {
     const title = document.getElementById('add-job-title').value.trim();
     const priority = document.getElementById('add-job-priority').value;
     const assignee = document.getElementById('add-job-assignee').value;
+    const syncCal = document.getElementById('add-job-calendar-sync') ? document.getElementById('add-job-calendar-sync').checked : false;
 
     if (!title) { alert("Please enter a job title."); return; }
 
-    jobs.push({ id: Date.now(), title: title, priority: priority, assignedTo: assignee, tasks: [], isArchived: false });
+    jobs.push({ id: Date.now(), title: title, priority: priority, assignedTo: assignee, tasks: [], isArchived: false, isShared: false });
+    
+    // Trigger Calendar Sync if checked!
+    if (syncCal) { await createCalendarEvent(title, null, `Priority: ${priority}`); }
+
     if(viewingArchives) { viewingArchives = false; document.getElementById('toggle-archive-btn').innerText = "Show Archives"; document.getElementById('toggle-archive-btn').style.background = "var(--light-gray)"; }
     
     closeAddJobModal(); renderJobs(); await saveData(); 
+}
+
+// --- SHARE LINK LOGIC ---
+async function shareCurrentJob() {
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
+    if(jobIndex < 0) return;
+    
+    // Update the database to mark this job as public (read-only)
+    jobs[jobIndex].isShared = true;
+    await saveData(); 
+    
+    const firebaseId = jobs[jobIndex].firebaseId || jobs[jobIndex].id.toString();
+    const shareUrl = window.location.origin + window.location.pathname + '?job=' + firebaseId;
+    
+    // Copy to clipboard
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("🔗 Link copied to clipboard! Anyone with this link can view a read-only version of this job.");
+    } catch (err) {
+        // Fallback for older browsers
+        alert("Share this link to grant Read-Only access: \n\n" + shareUrl);
+    }
 }
 
 async function deleteJobFromHome(jobId) {
@@ -450,6 +584,7 @@ async function addTask() {
     const assignee = document.getElementById('new-task-assignee').value;
     const hasDate = document.getElementById('new-task-has-date').checked;
     const dueDate = document.getElementById('new-task-date').value;
+    const syncCal = document.getElementById('new-task-calendar-sync') ? document.getElementById('new-task-calendar-sync').checked : false;
 
     if (!title) return alert("Enter a task name.");
     if (hasDate && !dueDate) return alert("Please select a due date.");
@@ -460,11 +595,15 @@ async function addTask() {
         id: Date.now(), title: title, desc: desc, priority: priority, assignedTo: assignee, status: 'Not Started', notes: '', hasDate: hasDate, dueDate: dueDate
     });
     
+    // Trigger Calendar Sync if checked!
+    if (syncCal) { await createCalendarEvent(title, hasDate ? dueDate : null, desc); }
+
     document.getElementById('new-task-title').value = '';
     document.getElementById('new-task-desc').value = '';
     document.getElementById('new-task-priority').value = 'Normal';
     document.getElementById('new-task-assignee').value = '';
     document.getElementById('new-task-has-date').checked = false;
+    if(document.getElementById('new-task-calendar-sync')) document.getElementById('new-task-calendar-sync').checked = false;
     document.getElementById('new-task-date').value = '';
     document.getElementById('new-task-date').classList.add('hidden');
     
@@ -654,6 +793,7 @@ async function cloneJob(firebaseId) {
     newJob.owner = currentUserName;
     newJob.ownerUid = currentUserUid;
     newJob.title = (newJob.title || 'Untitled') + " (Imported)";
+    newJob.isShared = false; // Never share imported jobs by default!
     
     if(newJob.tasks) {
         newJob.tasks.forEach((t, i) => {
@@ -765,7 +905,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -816,6 +956,7 @@ window.toggleDarkMode = toggleDarkMode;
 window.openAllUsersJobsModal = openAllUsersJobsModal;
 window.closeAllUsersJobsModal = closeAllUsersJobsModal;
 window.cloneJob = cloneJob;
+window.shareCurrentJob = shareCurrentJob;
 window.openChangelogModal = openChangelogModal;
 window.closeChangelogModal = closeChangelogModal;
 window.loadMoreLogs = loadMoreLogs;

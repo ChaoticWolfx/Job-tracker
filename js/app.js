@@ -1,6 +1,6 @@
-// Import Firebase directly from the web (No installation required)
+// Import Firebase directly from the web
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // Your specific Firebase configuration
 const firebaseConfig = {
@@ -24,41 +24,50 @@ let teamMembers = [];
 let currentJobId = null;
 let viewingArchives = false;
 
-// --- CLOUD SAVE & LOAD LOGIC ---
+// --- RECOVERED CLOUD SAVE & LOAD LOGIC ---
 async function loadData() { 
     if (!currentUser) return;
     const userKey = currentUser.toLowerCase();
-    const docRef = doc(db, "trackerData", userKey);
-    const docSnap = await getDoc(docRef);
+    jobs = [];
+    teamMembers = [];
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        jobs = data.jobs || [];
-        teamMembers = data.teamMembers || [];
-    } else {
-        // AUTO-MIGRATION: If no cloud data, check old local storage and push to cloud!
-        const localJobs = JSON.parse(localStorage.getItem('jobTrackerData_' + userKey));
-        let localTeam = JSON.parse(localStorage.getItem('teamTrackerData_' + userKey));
-        
-        if (localJobs && localJobs.length > 0) {
-            jobs = localJobs;
-            teamMembers = localTeam ? localTeam.map(m => typeof m === 'string' ? {name: m, role: 'Team Member'} : m) : [];
-            await saveData(); // Push to cloud immediately
-        } else {
-            jobs = [];
-            teamMembers = [];
-        }
-    }
+    // 1. Fetch your custom 'jobs' collection
+    const qJobs = query(collection(db, "jobs"), where("owner", "==", userKey));
+    const querySnapshotJobs = await getDocs(qJobs);
+    querySnapshotJobs.forEach((doc) => {
+        let data = doc.data();
+        data.firebaseId = doc.id; // Save the original random ID you created
+        if(!data.id) data.id = data.createdAt || Date.now(); // Fallback ID
+        if(!data.tasks) data.tasks = [];
+        jobs.push(data);
+    });
+    jobs.sort((a,b) => a.id - b.id); // Keep them in chronological order
+
+    // 2. Fetch your custom 'team' collection
+    const qTeam = query(collection(db, "team"), where("owner", "==", userKey));
+    const querySnapshotTeam = await getDocs(qTeam);
+    querySnapshotTeam.forEach((doc) => {
+        let data = doc.data();
+        data.firebaseId = doc.id;
+        teamMembers.push(data);
+    });
 }
 
 async function saveData() { 
     if (!currentUser) return;
     const userKey = currentUser.toLowerCase();
-    const docRef = doc(db, "trackerData", userKey);
-    await setDoc(docRef, {
-        jobs: jobs,
-        teamMembers: teamMembers
-    });
+
+    // Sync all active jobs to your 'jobs' folder
+    for (const job of jobs) {
+        const docId = job.firebaseId || job.id.toString();
+        await setDoc(doc(db, "jobs", docId), { ...job, owner: userKey });
+    }
+
+    // Sync all team members to your 'team' folder
+    for (const member of teamMembers) {
+        const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
+        await setDoc(doc(db, "team", docId), { ...member, owner: userKey });
+    }
 }
 
 // --- Helper Functions ---
@@ -75,12 +84,11 @@ async function login() {
     const input = document.getElementById('username-input').value.trim();
     if(input === "") { alert("Please enter a name."); return; }
     
-    // Show loading state while fetching from cloud
-    btn.innerText = "Loading from Cloud...";
+    btn.innerText = "Loading Database...";
     btn.style.opacity = "0.7";
     
     currentUser = input;
-    await loadData(); // Wait for cloud data
+    await loadData(); 
     
     btn.innerText = "Log In";
     btn.style.opacity = "1";
@@ -139,7 +147,13 @@ async function addTeamMember() {
         nameInput.value = ''; roleInput.value = '';
     }
 }
-async function removeTeamMember(index) { teamMembers.splice(index, 1); renderTeamList(); await saveData(); }
+async function removeTeamMember(index) { 
+    const member = teamMembers[index];
+    const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
+    await deleteDoc(doc(db, "team", docId)); // Permanently remove from cloud
+    teamMembers.splice(index, 1); 
+    renderTeamList(); 
+}
 
 function renderTeamList() {
     const list = document.getElementById('team-list');
@@ -219,8 +233,8 @@ function renderJobs() {
     }
 
     displayJobs.forEach((job) => {
-        const total = job.tasks.length;
-        const completed = job.tasks.filter(t => t.status === 'Complete').length;
+        const total = job.tasks ? job.tasks.length : 0;
+        const completed = job.tasks ? job.tasks.filter(t => t.status === 'Complete').length : 0;
         const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
         
         let badges = '';
@@ -240,7 +254,7 @@ function renderJobs() {
                 <button class="btn-danger btn-small" onclick="event.stopPropagation(); deleteJobFromHome(${job.id})" style="padding: 2px 8px; font-size:12px;">X</button>
             </div>
             ${badges ? `<div style="margin-bottom:8px; padding-right: 90px;">${badges}</div>` : ''}
-            <h3 style="padding-right: 90px;">${job.title} ${job.isArchived ? '(Archived)' : ''}</h3>
+            <h3 style="padding-right: 90px;">${job.title || 'Untitled Job'} ${job.isArchived ? '(Archived)' : ''}</h3>
             <p style="color: var(--gray); font-size: 14px; margin-top: 5px;">${total > 0 ? `${completed}/${total} Tasks Done` : 'No tasks'}</p>
             <div class="progress-container"><div class="progress-fill" style="width: ${percent}%;"></div></div>
         `;
@@ -271,7 +285,11 @@ async function saveNewJob() {
 
 async function deleteJobFromHome(jobId) {
     if(confirm("PERMANENTLY delete this job and all tasks?")) {
-        jobs = jobs.filter(j => j.id !== jobId); renderJobs(); await saveData();
+        const job = jobs.find(j => j.id === jobId);
+        const docId = job.firebaseId || job.id.toString();
+        await deleteDoc(doc(db, "jobs", docId)); // Wipe from Cloud folder
+        jobs = jobs.filter(j => j.id !== jobId); 
+        renderJobs();
     }
 }
 async function archiveCurrentJob() {
@@ -280,7 +298,11 @@ async function archiveCurrentJob() {
 }
 async function deleteCurrentJob() {
     if(confirm("PERMANENTLY delete this job?")) {
-        jobs = jobs.filter(j => j.id !== currentJobId); goHome(); await saveData();
+        const job = jobs.find(j => j.id === currentJobId);
+        const docId = job.firebaseId || job.id.toString();
+        await deleteDoc(doc(db, "jobs", docId)); // Wipe from Cloud folder
+        jobs = jobs.filter(j => j.id !== currentJobId); 
+        goHome();
     }
 }
 
@@ -290,7 +312,7 @@ function renderTasks() {
     container.innerHTML = '';
     const job = jobs.find(j => j.id === currentJobId);
 
-    document.getElementById('current-job-title').innerText = job.title;
+    document.getElementById('current-job-title').innerText = job.title || 'Untitled';
     document.getElementById('current-job-status').innerText = job.isArchived ? "Status: Archived" : "Status: Active";
     
     let topBadges = '';
@@ -298,6 +320,8 @@ function renderTasks() {
     if(job.priority === 'Low') topBadges += `<span class="badge badge-Low">Low Priority</span> `;
     if(job.assignedTo) topBadges += `<span class="badge badge-Assignee">Job Lead: ${getAssigneeText(job.assignedTo)}</span>`;
     document.getElementById('current-job-badges').innerHTML = topBadges;
+
+    if (!job.tasks) job.tasks = [];
 
     job.tasks.forEach((task, index) => {
         let dateDisplay = '';
@@ -391,80 +415,87 @@ async function deleteTask(taskId) {
     }
 }
 
-// --- CLOUD ADMIN OVERVIEW LOGIC ---
+// --- CLOUD ADMIN OVERVIEW LOGIC (Upgraded) ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
-    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching data from Cloud...</p>';
+    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching data from your jobs folder...</p>';
     document.getElementById('all-users-modal').classList.remove('hidden');
 
     try {
-        const querySnapshot = await getDocs(collection(db, "trackerData"));
+        const querySnapshot = await getDocs(collection(db, "jobs"));
         container.innerHTML = '';
-        let foundAny = false;
-
+        
+        // Group all pulled jobs by their Owner tag
+        let usersData = {};
         querySnapshot.forEach((doc) => {
-            const rawName = doc.id;
-            const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
             const data = doc.data();
-            const userJobs = data.jobs || [];
+            const owner = data.owner || "Unknown";
+            if(!usersData[owner]) usersData[owner] = [];
+            usersData[owner].push(data);
+        });
+
+        if (Object.keys(usersData).length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--gray); margin-top: 20px;">No jobs found in Cloud.</p>';
+            return;
+        }
+
+        // Build the dropdowns for each User found
+        for (const [owner, userJobs] of Object.entries(usersData)) {
+            const userName = owner.charAt(0).toUpperCase() + owner.slice(1);
             const activeJobs = userJobs.filter(j => !j.isArchived);
             
-            if(userJobs.length > 0) {
-                foundAny = true;
-                const userDiv = document.createElement('div');
-                userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--light-gray)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
-                
-                const userHeader = document.createElement('div');
-                userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.cursor = 'pointer'; userHeader.style.display = 'flex'; userHeader.style.justifyContent = 'space-between';
-                userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`;
-                
-                const jobsListContainer = document.createElement('div');
-                jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'white';
-                
-                if (activeJobs.length === 0) {
-                    jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">No active jobs.</em></div>';
-                } else {
-                    activeJobs.forEach(job => {
-                        const completed = job.tasks.filter(t => t.status === 'Complete').length;
-                        const total = job.tasks.length;
-                        const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid #eee';
-                        
-                        const jobHeader = document.createElement('div');
-                        jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between';
-                        jobHeader.innerHTML = `<strong>${job.title}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`;
-                        
-                        const taskList = document.createElement('div');
-                        taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = '#fafafa';
-                        
-                        if(total === 0) { taskList.innerHTML = '<em style="color:var(--gray); font-size:13px;">No tasks.</em>'; } 
-                        else {
-                            let tHtml = '<ul style="margin:0; padding-left:15px; font-size:14px; line-height:1.6;">';
-                            job.tasks.forEach(t => {
-                                let color = t.status === 'Complete' ? 'var(--success)' : (t.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
-                                let asgn = t.assignedTo ? ` (👤 ${t.assignedTo})` : '';
-                                tHtml += `<li>${t.title}${asgn} <span style="color:${color}; font-size:12px;">[${t.status}]</span></li>`;
-                            });
-                            tHtml += '</ul>'; taskList.innerHTML = tHtml;
-                        }
+            const userDiv = document.createElement('div');
+            userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--light-gray)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
+            
+            const userHeader = document.createElement('div');
+            userHeader.style.background = 'var(--light-gray)'; userHeader.style.padding = '12px 15px'; userHeader.style.fontWeight = 'bold'; userHeader.style.cursor = 'pointer'; userHeader.style.display = 'flex'; userHeader.style.justifyContent = 'space-between';
+            userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`;
+            
+            const jobsListContainer = document.createElement('div');
+            jobsListContainer.style.display = 'none'; jobsListContainer.style.background = 'white';
+            
+            if (activeJobs.length === 0) {
+                jobsListContainer.innerHTML = '<div style="padding:15px;"><em style="color: var(--gray); font-size: 14px;">No active jobs.</em></div>';
+            } else {
+                activeJobs.forEach(job => {
+                    const tasks = job.tasks || [];
+                    const completed = tasks.filter(t => t.status === 'Complete').length;
+                    const total = tasks.length;
+                    const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid #eee';
+                    
+                    const jobHeader = document.createElement('div');
+                    jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between';
+                    jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`;
+                    
+                    const taskList = document.createElement('div');
+                    taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = '#fafafa';
+                    
+                    if(total === 0) { taskList.innerHTML = '<em style="color:var(--gray); font-size:13px;">No tasks.</em>'; } 
+                    else {
+                        let tHtml = '<ul style="margin:0; padding-left:15px; font-size:14px; line-height:1.6;">';
+                        tasks.forEach(t => {
+                            let color = t.status === 'Complete' ? 'var(--success)' : (t.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
+                            let asgn = t.assignedTo ? ` (👤 ${t.assignedTo})` : '';
+                            tHtml += `<li>${t.title}${asgn} <span style="color:${color}; font-size:12px;">[${t.status}]</span></li>`;
+                        });
+                        tHtml += '</ul>'; taskList.innerHTML = tHtml;
+                    }
 
-                        jobHeader.onclick = (e) => {
-                            e.stopPropagation();
-                            if(taskList.style.display === 'none') { taskList.style.display = 'block'; jobHeader.innerHTML = `<strong>${job.title}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▲</span>`; } 
-                            else { taskList.style.display = 'none'; jobHeader.innerHTML = `<strong>${job.title}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`; }
-                        };
-                        jobRow.appendChild(jobHeader); jobRow.appendChild(taskList); jobsListContainer.appendChild(jobRow);
-                    });
-                }
-                
-                userHeader.onclick = () => {
-                    if (jobsListContainer.style.display === 'none') { jobsListContainer.style.display = 'block'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▲</span>`; } 
-                    else { jobsListContainer.style.display = 'none'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`; }
-                };
-                userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
+                    jobHeader.onclick = (e) => {
+                        e.stopPropagation();
+                        if(taskList.style.display === 'none') { taskList.style.display = 'block'; jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▲</span>`; } 
+                        else { taskList.style.display = 'none'; jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`; }
+                    };
+                    jobRow.appendChild(jobHeader); jobRow.appendChild(taskList); jobsListContainer.appendChild(jobRow);
+                });
             }
-        });
-        if (!foundAny) container.innerHTML = '<p style="color: var(--gray); text-align: center; margin-top: 20px;">No users found in Cloud.</p>';
-
+            
+            userHeader.onclick = () => {
+                if (jobsListContainer.style.display === 'none') { jobsListContainer.style.display = 'block'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▲</span>`; } 
+                else { jobsListContainer.style.display = 'none'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`; }
+            };
+            userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
+        }
     } catch (e) {
         container.innerHTML = `<p style="color: red; text-align: center; margin-top: 20px;">Error connecting to Cloud: ${e.message}</p>`;
     }
@@ -484,7 +515,7 @@ function openPrintModal() {
         if (!includeArchives && job.isArchived) return;
         container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
             <input type="checkbox" class="print-job-cb" value="${job.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
-            ${job.title} ${job.isArchived ? '(Archived)' : ''}
+            ${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}
         </label>`;
     });
 
@@ -508,9 +539,9 @@ function generatePrintPreview() {
         jobsToPrint.forEach(job => {
             let jPriority = job.priority === 'High' ? '[HIGH PRIORITY] ' : '';
             let jAssignee = job.assignedTo ? ` (Lead: ${getAssigneeText(job.assignedTo)})` : '';
-            html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>`;
+            html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>`;
             
-            if(job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
+            if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
             else {
                 html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
                 job.tasks.forEach(task => {
@@ -540,9 +571,9 @@ function printSingleJob() {
     let html = `<h2>Job Detail Report</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
     let jPriority = job.priority === 'High' ? '[HIGH PRIORITY] ' : '';
     let jAssignee = job.assignedTo ? ` (Lead: ${getAssigneeText(job.assignedTo)})` : '';
-    html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>`;
+    html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${jPriority}${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}${jAssignee}</h3>`;
     
-    if(job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
+    if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
     else {
         html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
         job.tasks.forEach(task => {
@@ -568,7 +599,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -609,7 +640,7 @@ async function loadMoreLogs() {
     else { document.getElementById('load-more-logs-btn').classList.remove('hidden'); }
 }
 
-// Ensure functions are available to HTML buttons now that this is a module
+// Global functions for HTML
 window.login = login;
 window.logout = logout;
 window.openAllUsersJobsModal = openAllUsersJobsModal;

@@ -19,7 +19,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
-// NO MORE CALENDAR PERMISSIONS REQUESTED! The warning is gone!
 
 // Master Admin Security Key
 const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
@@ -179,7 +178,6 @@ async function loginWithEmail() {
 
 async function loginWithGoogle() {
     try {
-        // We only ask for basic login info now!
         await signInWithPopup(auth, googleProvider);
     } catch(e) { alert("Google login failed: " + e.message); }
 }
@@ -305,7 +303,6 @@ function populateDropdowns() {
     if(jobDropdown) jobDropdown.innerHTML = optionsHTML;
     if(taskDropdown) taskDropdown.innerHTML = optionsHTML;
 }
-
 // --- Order Up/Down Functions ---
 async function moveJob(jobId, direction) {
     const index = jobs.findIndex(j => j.id === jobId);
@@ -342,28 +339,21 @@ async function moveTask(taskId, direction) {
     renderTasks(); await saveData(); 
 }
 
-// --- NEW: GOOGLE CALENDAR TEMPLATE LINK GENERATOR ---
+// --- NEW: SMART GOOGLE CALENDAR LINK GENERATOR ---
 function createCalendarLink(title, startDate, startTime, description) {
     let startDateTime = '';
     let endDateTime = '';
 
     if (startDate && startTime) {
-        // Create a proper date object using the user's local timezone
         const [year, month, day] = startDate.split('-');
         const [hour, minute] = startTime.split(':');
-        
         const localDate = new Date(year, month - 1, day, hour, minute);
-        // Add 1 hour for the default end time
         const localEndDate = new Date(localDate.getTime() + (60 * 60 * 1000));
-        
-        // Convert to UTC strings and strip out punctuation
         startDateTime = localDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
         endDateTime = localEndDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
     } else if (startDate) {
-        // If it's just a date (All Day Event)
         const [year, month, day] = startDate.split('-');
         startDateTime = `${year}${month}${day}`;
-        // Google requires the end date to be the NEXT day for all-day events
         const endDate = new Date(year, month - 1, day);
         endDate.setDate(endDate.getDate() + 1);
         const endYear = endDate.getFullYear();
@@ -371,7 +361,6 @@ function createCalendarLink(title, startDate, startTime, description) {
         const endDay = String(endDate.getDate()).padStart(2, '0');
         endDateTime = `${endYear}${endMonth}${endDay}`;
     } else {
-        // Fallback to today if something goes wrong
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -380,13 +369,19 @@ function createCalendarLink(title, startDate, startTime, description) {
         endDateTime = startDateTime;
     }
 
-    const baseUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-    const textParam = `&text=${encodeURIComponent("Job Tracker: " + title)}`;
-    const datesParam = `&dates=${startDateTime}/${endDateTime}`;
-    const detailsParam = `&details=${encodeURIComponent(description || "Added via Job Tracker App")}`;
-    
-    const finalUrl = baseUrl + textParam + datesParam + detailsParam;
-    window.open(finalUrl, '_blank');
+    const params = `&text=${encodeURIComponent("Job Tracker: " + title)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description || "Added via Job Tracker App")}`;
+    const webUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE' + params;
+
+    // --- SMART DEVICE DETECTION ---
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+        const fallbackUrl = encodeURIComponent(webUrl);
+        const intentUrl = `intent://calendar.google.com/calendar/render?action=TEMPLATE${params}#Intent;scheme=https;package=com.google.android.calendar;S.browser_fallback_url=${fallbackUrl};end;`;
+        window.location.href = intentUrl;
+    } else {
+        window.open(webUrl, '_blank');
+    }
 }
 
 function openJobCalendarTemplate() {

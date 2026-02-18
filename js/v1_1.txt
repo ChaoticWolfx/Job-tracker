@@ -1,0 +1,7 @@
+v1.1 Update
+- Added simple username login to keep task lists private per person.
+- Added visual progress bars to the main job screen (e.g., 50% complete).
+- Created an "Archive" feature to hide completed jobs without deleting them forever.
+- Added a sticky "Ongoing Notes" section to individual tasks.
+- Color-coded the left edge of tasks so you can see status at a glance.
+- Built the initial popup Change Log.

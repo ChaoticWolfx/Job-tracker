@@ -1,0 +1,3 @@
+v1.11 Update
+- Added an 'About this App' section to officially credit Matthew Holderness for the design and concept.
+- Added dual links to the footer to make About App and Change Logs accessible at all times.

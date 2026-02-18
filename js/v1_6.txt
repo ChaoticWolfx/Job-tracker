@@ -1,0 +1,4 @@
+v1.6 Update
+- Consolidated logs into a single data array.
+- App now automatically pulls the newest logs instantly.
+- Load More button dynamically shows 2 versions at a time.

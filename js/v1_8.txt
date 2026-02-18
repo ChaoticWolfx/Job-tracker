@@ -1,0 +1,4 @@
+v1.8 Update
+- Added an 'Admin Overview' button to the main login screen.
+- App now scans local storage for all active users.
+- Created a dropdown menu to quickly view active jobs and task progress for any user without logging in.

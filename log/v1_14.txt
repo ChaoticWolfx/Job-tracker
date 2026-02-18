@@ -1,0 +1,5 @@
+v1.14 Update
+- Mobile Fix: Swapped the drag-and-drop feature for dedicated "Up/Down" arrow buttons to prevent conflicts with phone scrolling.
+- Print Selection: The main print menu now features checkboxes so you can select exactly which jobs to print.
+- Single Job Printing: Added a 'Print Job' button inside individual jobs to print only that specific task list.
+- Team Roles display: Job Titles (e.g., Plumber, Foreman) now dynamically display alongside names on all task and job badges. 

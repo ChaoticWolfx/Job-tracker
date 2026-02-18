@@ -29,19 +29,17 @@ let currentUserEmail = null;
 let currentUserName = null;
 let jobs = [];
 let teamMembers = [];
+let adminViewJobs = []; // Temporarily stores jobs viewed in the Admin panel
 let currentJobId = null;
 let viewingArchives = false;
 
 // --- AUTHENTICATION STATE OBSERVER ---
-// This acts as a security guard. It fires automatically when someone logs in or out.
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // User just securely logged in!
         currentUserUid = user.uid;
         currentUserEmail = user.email;
-        currentUserName = user.displayName || user.email.split('@')[0]; // Fallback to email prefix if no name
+        currentUserName = user.displayName || user.email.split('@')[0]; 
         
-        // Check if God Mode is authorized
         if (currentUserUid === ADMIN_UID) {
             document.getElementById('admin-overview-btn').classList.remove('hidden');
         } else {
@@ -59,7 +57,6 @@ onAuthStateChanged(auth, async (user) => {
         viewingArchives = false;
         renderJobs();
     } else {
-        // User logged out. Wipe screen and lock down.
         currentUserUid = null;
         currentUserName = null;
         jobs = [];
@@ -91,9 +88,7 @@ async function loginWithGoogle() {
     } catch(e) { alert("Google login failed: " + e.message); }
 }
 
-async function logout() {
-    await signOut(auth);
-}
+async function logout() { await signOut(auth); }
 
 // --- SECURE CLOUD LOAD LOGIC ---
 async function loadData() { 
@@ -101,7 +96,6 @@ async function loadData() {
     jobs = [];
     teamMembers = [];
 
-    // 1. Fetch only jobs owned by this specific authenticated UID
     const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", currentUserUid));
     const querySnapshotJobs = await getDocs(qJobs);
     querySnapshotJobs.forEach((doc) => {
@@ -113,7 +107,6 @@ async function loadData() {
     });
     jobs.sort((a,b) => a.id - b.id); 
 
-    // 2. Fetch team members owned by this specific authenticated UID
     const qTeam = query(collection(db, "team"), where("ownerUid", "==", currentUserUid));
     const querySnapshotTeam = await getDocs(qTeam);
     querySnapshotTeam.forEach((doc) => {
@@ -128,7 +121,6 @@ async function saveData() {
 
     for (const job of jobs) {
         const docId = job.firebaseId || job.id.toString();
-        // Securely attach the UID to the document before sending it to the Vault
         await setDoc(doc(db, "jobs", docId), { ...job, owner: currentUserName, ownerUid: currentUserUid });
     }
 
@@ -448,7 +440,7 @@ async function deleteTask(taskId) {
     }
 }
 
-// --- CLOUD ADMIN OVERVIEW LOGIC ---
+// --- CLOUD ADMIN OVERVIEW LOGIC WITH JOB CLONING ---
 async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
     container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching all company jobs from Cloud...</p>';
@@ -457,11 +449,15 @@ async function openAllUsersJobsModal() {
     try {
         const querySnapshot = await getDocs(collection(db, "jobs"));
         container.innerHTML = '';
+        adminViewJobs = []; // Clear temporary admin view array
         
         // Group all pulled jobs by their Owner tag
         let usersData = {};
         querySnapshot.forEach((doc) => {
             const data = doc.data();
+            data.firebaseId = doc.id; // Save specific cloud ID for cloning
+            adminViewJobs.push(data); // Push into the temporary array
+
             const owner = data.owner || "Unknown User";
             if(!usersData[owner]) usersData[owner] = [];
             usersData[owner].push(data);
@@ -497,8 +493,15 @@ async function openAllUsersJobsModal() {
                     const jobRow = document.createElement('div'); jobRow.style.borderBottom = '1px solid #eee';
                     
                     const jobHeader = document.createElement('div');
-                    jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between';
-                    jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`;
+                    jobHeader.style.padding = '12px 15px'; jobHeader.style.cursor = 'pointer'; jobHeader.style.display = 'flex'; jobHeader.style.justifyContent = 'space-between'; jobHeader.style.alignItems = 'center';
+                    
+                    // Added the Import Button inside the job header!
+                    jobHeader.innerHTML = `
+                        <div style="flex: 1;">
+                            <strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>
+                        </div>
+                        <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
+                    `;
                     
                     const taskList = document.createElement('div');
                     taskList.style.display = 'none'; taskList.style.padding = '10px 15px 15px 25px'; taskList.style.background = '#fafafa';
@@ -516,8 +519,14 @@ async function openAllUsersJobsModal() {
 
                     jobHeader.onclick = (e) => {
                         e.stopPropagation();
-                        if(taskList.style.display === 'none') { taskList.style.display = 'block'; jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▲</span>`; } 
-                        else { taskList.style.display = 'none'; jobHeader.innerHTML = `<strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span>`; }
+                        if(taskList.style.display === 'none') { taskList.style.display = 'block'; jobHeader.innerHTML = `
+                            <div style="flex: 1;"><strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▲</span></div>
+                            <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
+                        `; } 
+                        else { taskList.style.display = 'none'; jobHeader.innerHTML = `
+                            <div style="flex: 1;"><strong>${job.title || 'Untitled'}</strong> <span style="color: var(--gray); font-size: 13px;">(${completed}/${total}) ▼</span></div>
+                            <button class="btn-primary btn-small" style="margin:0; padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick="event.stopPropagation(); cloneJob('${job.firebaseId}')">📥 Import</button>
+                        `; }
                     };
                     jobRow.appendChild(jobHeader); jobRow.appendChild(taskList); jobsListContainer.appendChild(jobRow);
                 });
@@ -534,6 +543,40 @@ async function openAllUsersJobsModal() {
     }
 }
 function closeAllUsersJobsModal() { document.getElementById('all-users-modal').classList.add('hidden'); }
+
+// --- THE NEW IMPORT/CLONE FUNCTION ---
+async function cloneJob(firebaseId) {
+    // Find the specific job in the admin temporary array
+    const originalJob = adminViewJobs.find(j => j.firebaseId === firebaseId);
+    if(!originalJob) return;
+
+    if(!confirm(`Import "${originalJob.title || 'Untitled'}" to your own job list?`)) return;
+
+    // Deep copy the job so changes don't affect the original owner's list
+    const newJob = JSON.parse(JSON.stringify(originalJob));
+    
+    // Assign completely new IDs and transfer ownership to you
+    newJob.id = Date.now();
+    newJob.firebaseId = newJob.id.toString(); 
+    newJob.owner = currentUserName;
+    newJob.ownerUid = currentUserUid;
+    newJob.title = (newJob.title || 'Untitled') + " (Imported)";
+    
+    // Refresh task IDs to prevent overlaps
+    if(newJob.tasks) {
+        newJob.tasks.forEach((t, i) => {
+            t.id = Date.now() + i + 1;
+        });
+    }
+
+    // Push it straight into your home screen!
+    jobs.push(newJob);
+    
+    // Alert and save
+    alert(`"${newJob.title}" imported successfully! You can find it on your home screen.`);
+    renderJobs();
+    await saveData();
+}
 
 // --- PRINT LOGIC ---
 function openPrintModal() { 
@@ -632,7 +675,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v2_1', 'v2_0', 'v1_16', 'v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -679,6 +722,7 @@ window.loginWithGoogle = loginWithGoogle;
 window.logout = logout;
 window.openAllUsersJobsModal = openAllUsersJobsModal;
 window.closeAllUsersJobsModal = closeAllUsersJobsModal;
+window.cloneJob = cloneJob;
 window.openChangelogModal = openChangelogModal;
 window.closeChangelogModal = closeChangelogModal;
 window.loadMoreLogs = loadMoreLogs;

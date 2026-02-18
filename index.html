@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Job Tracker v1.13</title>
+    <title>Job Tracker v1.14</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -40,7 +40,7 @@
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button class="btn btn-small" id="toggle-archive-btn" onclick="toggleArchives()" style="margin: 0; background: var(--light-gray); flex: 1;">Show Archives</button>
-                    <button class="btn btn-info btn-small" onclick="openPrintModal()" style="margin: 0; flex: 1;">🖨️ Print</button>
+                    <button class="btn btn-info btn-small" onclick="openPrintModal()" style="margin: 0; flex: 1;">🖨️ Print List</button>
                 </div>
                 <div id="jobs-container"></div>
             </div>
@@ -48,7 +48,8 @@
             <div id="job-detail-view" class="hidden">
                 <div class="top-bar">
                     <button class="btn btn-small" onclick="goHome()">← Back</button>
-                    <div>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-info btn-small" onclick="printSingleJob()">🖨️ Print Job</button>
                         <button class="btn btn-warning btn-small" onclick="archiveCurrentJob()">Archive</button>
                         <button class="btn btn-danger btn-small" onclick="deleteCurrentJob()">Delete</button>
                     </div>
@@ -140,12 +141,18 @@
         <div class="modal-content" style="height: 80vh;">
             <span class="close-btn" onclick="closePrintModal()">&times;</span>
             <h2 style="margin-bottom: 10px;">Print Preview</h2>
-            <div class="print-top-bar">
-                <label style="font-weight: bold; cursor: pointer;">
-                    <input type="checkbox" id="print-archive-toggle" onchange="generatePrintPreview()" style="width: auto; margin-right: 5px;"> Include Archives
-                </label>
-                <button class="btn btn-info btn-small" onclick="executePrint()" style="margin: 0;">🖨️ Print Now</button>
+            
+            <div class="print-top-bar" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: bold; cursor: pointer;">
+                        <input type="checkbox" id="print-archive-toggle" onchange="openPrintModal()" style="width: auto; margin-right: 5px;"> Show Archives
+                    </label>
+                    <button class="btn btn-info btn-small" onclick="executePrint()" style="margin: 0;">🖨️ Print Now</button>
+                </div>
+                <div style="width: 100%; max-height: 120px; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" id="print-job-selection" onchange="generatePrintPreview()">
+                    </div>
             </div>
+
             <div id="print-preview-area" class="print-preview-area"></div>
         </div>
     </div>
@@ -180,6 +187,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

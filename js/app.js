@@ -1,3 +1,22 @@
+// Import Firebase directly from the web (No installation required)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+// Your specific Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBpeJ6rGw24Mf_xcno9zj9Q6MQW-2HuuMA",
+  authDomain: "jobtracker-4d6eb.firebaseapp.com",
+  projectId: "jobtracker-4d6eb",
+  storageBucket: "jobtracker-4d6eb.firebasestorage.app",
+  messagingSenderId: "1074805891410",
+  appId: "1:1074805891410:web:e4dde23db3ced1b9061a8b",
+  measurementId: "G-PV9V64CJZ5"
+};
+
+// Initialize the Cloud connection
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 // Data Structure & State
 let currentUser = null;
 let jobs = [];
@@ -5,21 +24,41 @@ let teamMembers = [];
 let currentJobId = null;
 let viewingArchives = false;
 
-function getJobKey() { return 'jobTrackerData_' + currentUser.toLowerCase(); }
-function getTeamKey() { return 'teamTrackerData_' + currentUser.toLowerCase(); }
+// --- CLOUD SAVE & LOAD LOGIC ---
+async function loadData() { 
+    if (!currentUser) return;
+    const userKey = currentUser.toLowerCase();
+    const docRef = doc(db, "trackerData", userKey);
+    const docSnap = await getDoc(docRef);
 
-function loadData() { 
-    jobs = JSON.parse(localStorage.getItem(getJobKey())) || []; 
-    let loadedTeam = JSON.parse(localStorage.getItem(getTeamKey())) || [];
-    teamMembers = loadedTeam.map(member => {
-        if (typeof member === 'string') return { name: member, role: 'Team Member' };
-        return member;
-    });
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        jobs = data.jobs || [];
+        teamMembers = data.teamMembers || [];
+    } else {
+        // AUTO-MIGRATION: If no cloud data, check old local storage and push to cloud!
+        const localJobs = JSON.parse(localStorage.getItem('jobTrackerData_' + userKey));
+        let localTeam = JSON.parse(localStorage.getItem('teamTrackerData_' + userKey));
+        
+        if (localJobs && localJobs.length > 0) {
+            jobs = localJobs;
+            teamMembers = localTeam ? localTeam.map(m => typeof m === 'string' ? {name: m, role: 'Team Member'} : m) : [];
+            await saveData(); // Push to cloud immediately
+        } else {
+            jobs = [];
+            teamMembers = [];
+        }
+    }
 }
 
-function saveData() { 
-    localStorage.setItem(getJobKey(), JSON.stringify(jobs)); 
-    localStorage.setItem(getTeamKey(), JSON.stringify(teamMembers));
+async function saveData() { 
+    if (!currentUser) return;
+    const userKey = currentUser.toLowerCase();
+    const docRef = doc(db, "trackerData", userKey);
+    await setDoc(docRef, {
+        jobs: jobs,
+        teamMembers: teamMembers
+    });
 }
 
 // --- Helper Functions ---
@@ -31,11 +70,21 @@ function getAssigneeText(name) {
 }
 
 // --- Login Logic ---
-function login() {
+async function login() {
+    const btn = document.querySelector('#login-view .btn-primary');
     const input = document.getElementById('username-input').value.trim();
     if(input === "") { alert("Please enter a name."); return; }
+    
+    // Show loading state while fetching from cloud
+    btn.innerText = "Loading from Cloud...";
+    btn.style.opacity = "0.7";
+    
     currentUser = input;
-    loadData();
+    await loadData(); // Wait for cloud data
+    
+    btn.innerText = "Log In";
+    btn.style.opacity = "1";
+
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('home-view').classList.remove('hidden');
     document.getElementById('logout-btn').classList.remove('hidden');
@@ -71,13 +120,10 @@ function viewJob(jobId) {
 }
 
 // --- Team Management ---
-function openTeamModal() {
-    renderTeamList();
-    document.getElementById('team-modal').classList.remove('hidden');
-}
+function openTeamModal() { renderTeamList(); document.getElementById('team-modal').classList.remove('hidden'); }
 function closeTeamModal() { document.getElementById('team-modal').classList.add('hidden'); }
 
-function addTeamMember() {
+async function addTeamMember() {
     const nameInput = document.getElementById('new-team-member');
     const roleInput = document.getElementById('new-team-role');
     const name = nameInput.value.trim();
@@ -85,11 +131,15 @@ function addTeamMember() {
     
     if(name) {
         const exists = teamMembers.find(m => m.name.toLowerCase() === name.toLowerCase());
-        if(!exists) { teamMembers.push({name: name, role: role}); saveData(); renderTeamList(); }
+        if(!exists) { 
+            teamMembers.push({name: name, role: role}); 
+            renderTeamList(); 
+            await saveData(); 
+        }
         nameInput.value = ''; roleInput.value = '';
     }
 }
-function removeTeamMember(index) { teamMembers.splice(index, 1); saveData(); renderTeamList(); }
+async function removeTeamMember(index) { teamMembers.splice(index, 1); renderTeamList(); await saveData(); }
 
 function renderTeamList() {
     const list = document.getElementById('team-list');
@@ -114,7 +164,7 @@ function populateDropdowns() {
 }
 
 // --- Order Up/Down Functions ---
-function moveJob(jobId, direction) {
+async function moveJob(jobId, direction) {
     const index = jobs.findIndex(j => j.id === jobId);
     if (index < 0) return;
     
@@ -129,11 +179,11 @@ function moveJob(jobId, direction) {
         const temp = jobs[index];
         jobs[index] = jobs[targetIndex];
         jobs[targetIndex] = temp;
-        saveData(); renderJobs();
+        renderJobs(); await saveData(); 
     }
 }
 
-function moveTask(taskId, direction) {
+async function moveTask(taskId, direction) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     
@@ -146,7 +196,7 @@ function moveTask(taskId, direction) {
         jobs[jobIndex].tasks[taskIndex] = jobs[jobIndex].tasks[taskIndex+1];
         jobs[jobIndex].tasks[taskIndex+1] = temp;
     }
-    saveData(); renderTasks();
+    renderTasks(); await saveData(); 
 }
 
 // --- Jobs Logic ---
@@ -206,7 +256,7 @@ function openAddJobModal() {
 }
 function closeAddJobModal() { document.getElementById('add-job-modal').classList.add('hidden'); }
 
-function saveNewJob() {
+async function saveNewJob() {
     const title = document.getElementById('add-job-title').value.trim();
     const priority = document.getElementById('add-job-priority').value;
     const assignee = document.getElementById('add-job-assignee').value;
@@ -214,23 +264,23 @@ function saveNewJob() {
     if (!title) { alert("Please enter a job title."); return; }
 
     jobs.push({ id: Date.now(), title: title, priority: priority, assignedTo: assignee, tasks: [], isArchived: false });
-    saveData();
     if(viewingArchives) { viewingArchives = false; document.getElementById('toggle-archive-btn').innerText = "Show Archives"; document.getElementById('toggle-archive-btn').style.background = "var(--light-gray)"; }
-    closeAddJobModal(); renderJobs();
+    
+    closeAddJobModal(); renderJobs(); await saveData(); 
 }
 
-function deleteJobFromHome(jobId) {
+async function deleteJobFromHome(jobId) {
     if(confirm("PERMANENTLY delete this job and all tasks?")) {
-        jobs = jobs.filter(j => j.id !== jobId); saveData(); renderJobs();
+        jobs = jobs.filter(j => j.id !== jobId); renderJobs(); await saveData();
     }
 }
-function archiveCurrentJob() {
+async function archiveCurrentJob() {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; saveData(); goHome();
+    jobs[jobIndex].isArchived = !jobs[jobIndex].isArchived; goHome(); await saveData();
 }
-function deleteCurrentJob() {
+async function deleteCurrentJob() {
     if(confirm("PERMANENTLY delete this job?")) {
-        jobs = jobs.filter(j => j.id !== currentJobId); saveData(); goHome();
+        jobs = jobs.filter(j => j.id !== currentJobId); goHome(); await saveData();
     }
 }
 
@@ -293,7 +343,7 @@ function renderTasks() {
 
 function toggleDateField() { document.getElementById('new-task-date').classList.toggle('hidden'); }
 
-function addTask() {
+async function addTask() {
     const title = document.getElementById('new-task-title').value.trim();
     const desc = document.getElementById('new-task-desc').value.trim();
     const priority = document.getElementById('new-task-priority').value;
@@ -318,45 +368,49 @@ function addTask() {
     document.getElementById('new-task-date').value = '';
     document.getElementById('new-task-date').classList.add('hidden');
     
-    saveData(); renderTasks();
+    renderTasks(); await saveData(); 
 }
 
-function updateTaskStatus(taskId, newStatus) {
+async function updateTaskStatus(taskId, newStatus) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     jobs[jobIndex].tasks[taskIndex].status = newStatus;
-    saveData(); renderTasks(); 
+    renderTasks(); await saveData(); 
 }
-function updateTaskNotes(taskId, notes) {
+async function updateTaskNotes(taskId, notes) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     jobs[jobIndex].tasks[taskIndex].notes = notes;
-    saveData();
+    await saveData();
 }
-function deleteTask(taskId) {
+async function deleteTask(taskId) {
     if(confirm("Remove this task?")) {
         const jobIndex = jobs.findIndex(j => j.id === currentJobId);
         jobs[jobIndex].tasks = jobs[jobIndex].tasks.filter(t => t.id !== taskId);
-        saveData(); renderTasks();
+        renderTasks(); await saveData();
     }
 }
 
-// --- ADMIN OVERVIEW LOGIC ---
-function openAllUsersJobsModal() {
+// --- CLOUD ADMIN OVERVIEW LOGIC ---
+async function openAllUsersJobsModal() {
     const container = document.getElementById('all-users-container');
-    container.innerHTML = '';
-    let foundAny = false;
+    container.innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching data from Cloud...</p>';
+    document.getElementById('all-users-modal').classList.remove('hidden');
 
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('jobTrackerData_')) {
-            const rawName = key.replace('jobTrackerData_', '');
+    try {
+        const querySnapshot = await getDocs(collection(db, "trackerData"));
+        container.innerHTML = '';
+        let foundAny = false;
+
+        querySnapshot.forEach((doc) => {
+            const rawName = doc.id;
             const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-            try {
-                const userJobs = JSON.parse(localStorage.getItem(key)) || [];
-                const activeJobs = userJobs.filter(j => !j.isArchived);
+            const data = doc.data();
+            const userJobs = data.jobs || [];
+            const activeJobs = userJobs.filter(j => !j.isArchived);
+            
+            if(userJobs.length > 0) {
                 foundAny = true;
-                
                 const userDiv = document.createElement('div');
                 userDiv.style.marginBottom = '15px'; userDiv.style.border = '1px solid var(--light-gray)'; userDiv.style.borderRadius = '8px'; userDiv.style.overflow = 'hidden';
                 
@@ -407,20 +461,21 @@ function openAllUsersJobsModal() {
                     else { jobsListContainer.style.display = 'none'; userHeader.innerHTML = `<span>👤 ${userName}</span> <span style="color: var(--primary);">${activeJobs.length} Active ▼</span>`; }
                 };
                 userDiv.appendChild(userHeader); userDiv.appendChild(jobsListContainer); container.appendChild(userDiv);
-            } catch (e) { console.error("Could not parse data"); }
-        }
+            }
+        });
+        if (!foundAny) container.innerHTML = '<p style="color: var(--gray); text-align: center; margin-top: 20px;">No users found in Cloud.</p>';
+
+    } catch (e) {
+        container.innerHTML = `<p style="color: red; text-align: center; margin-top: 20px;">Error connecting to Cloud: ${e.message}</p>`;
     }
-    if (!foundAny) container.innerHTML = '<p style="color: var(--gray); text-align: center; margin-top: 20px;">No users found.</p>';
-    document.getElementById('all-users-modal').classList.remove('hidden');
 }
 function closeAllUsersJobsModal() { document.getElementById('all-users-modal').classList.add('hidden'); }
 
-// --- ADVANCED PRINT LOGIC ---
+// --- PRINT LOGIC ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
     document.getElementById('print-archive-toggle').checked = false; 
     
-    // Populate checkboxes for jobs
     const container = document.getElementById('print-job-selection');
     container.innerHTML = '';
     const includeArchives = document.getElementById('print-archive-toggle').checked;
@@ -513,7 +568,7 @@ function executePrint() { document.getElementById('real-print-area').innerHTML =
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 
-const logFilesList = ['v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
+const logFilesList = ['v1_15', 'v1_14', 'v1_13', 'v1_12', 'v1_11', 'v1_10', 'v1_9', 'v1_8', 'v1_7', 'v1_6', 'v1_5', 'v1_4', 'v1_3', 'v1_2', 'v1_1', 'v1_0'];
 let currentLogIndex = 0;
 
 function openChangelogModal() {
@@ -553,3 +608,39 @@ async function loadMoreLogs() {
     if (currentLogIndex >= logFilesList.length) { document.getElementById('load-more-logs-btn').classList.add('hidden'); }
     else { document.getElementById('load-more-logs-btn').classList.remove('hidden'); }
 }
+
+// Ensure functions are available to HTML buttons now that this is a module
+window.login = login;
+window.logout = logout;
+window.openAllUsersJobsModal = openAllUsersJobsModal;
+window.closeAllUsersJobsModal = closeAllUsersJobsModal;
+window.openChangelogModal = openChangelogModal;
+window.closeChangelogModal = closeChangelogModal;
+window.loadMoreLogs = loadMoreLogs;
+window.openAboutModal = openAboutModal;
+window.closeAboutModal = closeAboutModal;
+window.openAddJobModal = openAddJobModal;
+window.closeAddJobModal = closeAddJobModal;
+window.saveNewJob = saveNewJob;
+window.openTeamModal = openTeamModal;
+window.closeTeamModal = closeTeamModal;
+window.addTeamMember = addTeamMember;
+window.removeTeamMember = removeTeamMember;
+window.toggleArchives = toggleArchives;
+window.openPrintModal = openPrintModal;
+window.closePrintModal = closePrintModal;
+window.generatePrintPreview = generatePrintPreview;
+window.printSingleJob = printSingleJob;
+window.executePrint = executePrint;
+window.goHome = goHome;
+window.archiveCurrentJob = archiveCurrentJob;
+window.deleteCurrentJob = deleteCurrentJob;
+window.deleteJobFromHome = deleteJobFromHome;
+window.moveJob = moveJob;
+window.addTask = addTask;
+window.toggleDateField = toggleDateField;
+window.deleteTask = deleteTask;
+window.moveTask = moveTask;
+window.updateTaskStatus = updateTaskStatus;
+window.updateTaskNotes = updateTaskNotes;
+window.viewJob = viewJob;

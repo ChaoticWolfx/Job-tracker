@@ -1,0 +1,6 @@
+Version 2.6
+- Rebuilt the Calendar syncing to use Universal Web Links (100% reliable on both iOS and Android).
+- Moved Calendar Sync buttons to the saved Jobs and Tasks to keep the creation forms clean.
+- Upgraded the Print Modal: Printing from inside a job now generates a Site Checklist with physical checkboxes.
+- Fixed the "Blank Page" mobile print bug by isolating the print spooler.
+- Updated the Changelog system to dynamically fetch files without crashing if one is missing.

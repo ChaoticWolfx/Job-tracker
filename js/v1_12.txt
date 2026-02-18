@@ -1,0 +1,3 @@
+v1.12 Update
+- Restructured the entire application into professional subfolders (HTML, CSS, JS).
+- Moved project to GitHub for secure cloud backup and future OTA updates.

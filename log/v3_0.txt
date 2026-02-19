@@ -1,0 +1,7 @@
+Version 3.0 - The Pro UI/UX Update
+- Complete UI Overhaul: Modern styling, rounded corners, soft shadows, and clean minimalist icons.
+- True Drag-and-Drop: Seamlessly reorder jobs and tasks using the new touch drag handles (☰).
+- Edit Modals: You can now edit Job and Task details (names, dates, priorities) on the fly without having to delete and recreate them!
+- Smart Completion Sorting: Marking a task as "Complete" now crosses it out and instantly sinks it to the bottom of your list.
+- Hide Completed Toggle: Added a switch to hide completed tasks and keep your workspace perfectly clean.
+- Bulletproof Printing: Rebuilt the print engine with a physical DOM-swap method for 100% reliable physical printing from mobile devices.

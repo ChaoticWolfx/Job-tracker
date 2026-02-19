@@ -859,7 +859,9 @@ function restoreAppAfterPrint() {
     allModals.forEach(m => m.style.display = '');
 }
 
-// We remove the buggy Android 'afterprint' listener completely.
+// THIS WAS THE MISSING LINK! Connects the function to the HTML button
+window.restoreAppAfterPrint = restoreAppAfterPrint; 
+
 function printSingleJob() { openPrintModal(); }
 
 // --- CHANGELOG MODAL (FOLDER-BASED SYSTEM) ---

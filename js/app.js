@@ -818,7 +818,7 @@ function restoreAppAfterPrint() {
 // --- CHANGELOG MODAL ---
 function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
-const logFilesList = ['v2_7', 'v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15'];
+const logFilesList = ['v3_0', 'v2_7', 'v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15'];
 let currentLogIndex = 0;
 function openChangelogModal() { document.getElementById('changelog-modal').classList.remove('hidden'); if (currentLogIndex === 0) { document.getElementById('changelog-container').innerHTML = ''; loadMoreLogs(); } }
 function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }

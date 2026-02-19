@@ -857,7 +857,7 @@ async function loadMoreLogs() {
     }
     if (currentLogIndex >= logFilesList.length) { if(loadBtn) loadBtn.style.display = 'none'; if(container.innerHTML === '') container.innerHTML = '<p style="color:var(--gray); text-align:center;">No updates found.</p>'; } else { if(loadBtn) { loadBtn.style.display = 'inline-block'; loadBtn.innerText = "Show More"; } }
 }
-
+function printSingleJob() { openPrintModal(); }
 // Global scope mapping
 window.loginWithEmail = loginWithEmail; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;

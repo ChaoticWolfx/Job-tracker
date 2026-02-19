@@ -373,7 +373,6 @@ function createCalendarLink(title, startDate, startTime, description) {
     const safeDesc = encodeURIComponent(description || "Added via Job Tracker App");
 
     // This Universal web link works perfectly on Android and iOS.
-    // It will prompt Android devices to open the app, and smoothly load the web-calendar for iOS.
     const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${safeTitle}&dates=${startDateTime}/${endDateTime}&details=${safeDesc}`;
     
     window.open(webUrl, '_blank');
@@ -713,7 +712,7 @@ async function cloneJob(firebaseId) {
     jobs.push(newJob); alert(`Imported!`); renderJobs(); await saveData();
 }
 
-// --- CONTEXT-AWARE PRINT LOGIC (FIXED FOR BLANK PAGES) ---
+// --- CONTEXT-AWARE PRINT LOGIC (PHYSICAL DOM SWAP FIX) ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
     const isJobView = currentJobId !== null;
@@ -730,7 +729,7 @@ function openPrintModal() {
             container.innerHTML = '<p style="color:var(--gray);">No tasks to print.</p>';
         } else {
             job.tasks.forEach(task => {
-                container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
+                container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px; cursor:pointer;">
                     <input type="checkbox" class="print-item-cb" value="${task.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
                     ${task.title}
                 </label>`;
@@ -740,7 +739,7 @@ function openPrintModal() {
         const includeArchives = document.getElementById('print-archive-toggle').checked;
         jobs.forEach(job => {
             if (!includeArchives && job.isArchived) return;
-            container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px;">
+            container.innerHTML += `<label style="display:block; margin-bottom:10px; font-size:16px; cursor:pointer;">
                 <input type="checkbox" class="print-item-cb" value="${job.id}" checked style="width:auto; margin-right:8px; transform: scale(1.2);"> 
                 ${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}
             </label>`;
@@ -753,7 +752,8 @@ function closePrintModal() { document.getElementById('print-modal').classList.ad
 
 function generatePrintPreview() {
     const checkboxes = document.querySelectorAll('.print-item-cb');
-    const selectedIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => parseInt(cb.value));
+    // Force conversion to Strings so Firebase doesn't accidentally miss a match
+    const selectedIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => String(cb.value));
     
     const printArea = document.getElementById('print-preview-area');
     const dateStr = new Date().toLocaleDateString();
@@ -762,33 +762,37 @@ function generatePrintPreview() {
     let html = '';
     if (isJobView) {
         const job = jobs.find(j => j.id === currentJobId);
-        html = `<h2>${job.title} - Site Checklist</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
-        const tasksToPrint = (job.tasks || []).filter(t => selectedIds.includes(t.id));
+        html = `<div style="color:black; font-family:sans-serif; background:white; padding:10px;">
+        <h2>${job.title} - Site Checklist</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
+        
+        const tasksToPrint = (job.tasks || []).filter(t => selectedIds.includes(String(t.id)));
         if(tasksToPrint.length === 0) { html += `<p>No tasks selected.</p>`; } 
         else {
             html += `<ul style="list-style-type: none; padding-left: 0;">`;
             tasksToPrint.forEach(task => {
                 let tAssignee = task.assignedTo ? ` <strong>(Lead: ${getAssigneeText(task.assignedTo)})</strong>` : '';
                 let tDate = task.dueDate ? ` <span style="color:#d9534f; float:right;">[Due: ${task.dueDate}]</span>` : '';
-                html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
                     <div style="font-size: 18px;">
                         <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>
                         ${task.title}${tAssignee}${tDate}
                     </div>`;
-                if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555;">Desc: ${task.desc}</div>`;
-                if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #666; font-style: italic;">Notes: ${task.notes}</div>`;
+                if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;">Desc: ${task.desc}</div>`;
+                if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555; font-style: italic;">Notes: ${task.notes}</div>`;
                 html += `</li>`;
             });
             html += `</ul>`;
         }
+        html += `</div>`;
     } else {
-        html = `<h2>${currentUserName}'s Active Jobs</h2><p style="margin-bottom: 20px;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
-        const jobsToPrint = jobs.filter(j => selectedIds.includes(j.id));
+        html = `<div style="color:black; font-family:sans-serif; background:white; padding:10px;">
+        <h2>${currentUserName}'s Active Jobs</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
+        const jobsToPrint = jobs.filter(j => selectedIds.includes(String(j.id)));
         if(jobsToPrint.length === 0) { html += `<p>No jobs selected.</p>`; } 
         else {
             jobsToPrint.forEach(job => {
-                html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}</h3>`;
-                if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px;">No tasks.</p>`; } 
+                html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}</h3>`;
+                if(!job.tasks || job.tasks.length === 0) { html += `<p style="margin-left:15px; color:#555;">No tasks.</p>`; } 
                 else {
                     html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`;
                     job.tasks.forEach(task => { html += `<li><strong>${task.title}</strong> - Status: <em>${task.status}</em></li>`; });
@@ -797,54 +801,56 @@ function generatePrintPreview() {
                 html += `</div>`;
             });
         }
+        html += `</div>`;
     }
     printArea.innerHTML = html;
 }
 
- 
-// 100% BULLETPROOF PRINTING (Mobile Spooler Fix)
+// 100% BULLETPROOF PRINTING (Physical DOM Swap Fix)
 function executePrint() { 
+    const previewHTML = document.getElementById('print-preview-area').innerHTML;
+    if (!previewHTML || previewHTML.trim() === '') return alert("There is nothing to print!");
+
     const printArea = document.getElementById('real-print-area');
-    printArea.innerHTML = document.getElementById('print-preview-area').innerHTML; 
+    const mainApp = document.getElementById('main-app-wrapper');
+    const allModals = document.querySelectorAll('.modal');
+
+    // Step 1: Copy the preview into the real print area
+    printArea.innerHTML = previewHTML;
+
+    // Step 2: Physically hide the entire rest of the app
+    mainApp.style.display = 'none';
+    allModals.forEach(m => m.style.display = 'none');
     
-    // Close the print modal BEFORE generating the PDF to fix background spacing issues
-    closePrintModal();
-    
-    // Inject a special CSS style block that precisely isolates the print area
-    const style = document.createElement('style');
-    style.id = 'temp-print-style';
-    style.innerHTML = `
-        @media print {
-            /* Hide literally everything in the body EXCEPT the print area */
-            body > *:not(#real-print-area) { 
-                display: none !important; 
-            }
-            /* Use relative positioning so long lists span multiple pages correctly */
-            #real-print-area { 
-                display: block !important; 
-                position: relative !important; 
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    printArea.classList.remove('hidden'); 
-    
-    // Give the mobile browser time to apply the CSS and clear the screen, then print
+    // Step 3: Show ONLY the print area and force white background / black text
+    printArea.classList.remove('hidden');
+    printArea.style.display = 'block';
+    printArea.style.background = 'white';
+    printArea.style.color = 'black';
+    printArea.style.position = 'absolute';
+    printArea.style.top = '0';
+    printArea.style.left = '0';
+    printArea.style.width = '100%';
+
+    // Step 4: Fire print dialog
     setTimeout(() => { 
         window.print(); 
-    }, 500); 
+        
+        // Step 5: Restore the app automatically
+        setTimeout(() => {
+            printArea.classList.add('hidden');
+            printArea.style.display = 'none';
+            mainApp.style.display = 'block';
+            closePrintModal();
+        }, 500);
+    }, 300); 
 }
 
-// Wait for the user to actually close the PDF/Print screen before cleaning up!
+// Listen for mobile browser "done printing" event just to be safe
 window.addEventListener('afterprint', () => {
-    const style = document.getElementById('temp-print-style');
-    if (style) document.head.removeChild(style);
     document.getElementById('real-print-area').classList.add('hidden');
+    document.getElementById('real-print-area').style.display = 'none';
+    document.getElementById('main-app-wrapper').style.display = 'block';
 });
 
 function printSingleJob() { openPrintModal(); }
@@ -875,6 +881,7 @@ async function loadMoreLogs() {
     while (loadedThisTime < 2 && currentLogIndex < logFilesList.length) {
         const versionName = logFilesList[currentLogIndex];
         try {
+            // Cache buster ensures it pulls your latest text file changes
             const response = await fetch(`log/${versionName}.txt?v=${Date.now()}`);
             if (!response.ok) throw new Error("File not found");
             
@@ -893,6 +900,7 @@ async function loadMoreLogs() {
             container.innerHTML += html;
             loadedThisTime++; 
         } catch (e) {
+            // Silently skip if the file hasn't been created in GitHub yet
             console.warn(`Missing file: log/${versionName}.txt`);
         }
         currentLogIndex++;

@@ -52,7 +52,6 @@
                 </div>
             </div>
 
-
             <div id="shared-job-view" class="hidden">
                 <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                     <button class="btn btn-primary btn-small" onclick="window.location.href=window.location.pathname">← Go to Main App</button>
@@ -100,29 +99,17 @@
                 <h2 id="current-job-title" style="margin-bottom: 5px;"></h2>
                 <div id="current-job-calendar-action" style="margin-bottom: 15px;"></div>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <h3 style="margin: 0;">Tasks</h3>
-                    <label style="font-size: 13px; color: var(--gray); cursor: pointer;">
-                        <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Completed
-                    </label>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <label style="font-size: 13px; color: var(--gray); cursor: pointer;">
+                            <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Completed
+                        </label>
+                        <button class="btn btn-primary btn-small" style="margin: 0;" onclick="openAddTaskModal()">+ Add Task</button>
+                    </div>
                 </div>
 
                 <div id="tasks-container"></div>
-                
-                <div class="card" style="margin-top:30px; border: 2px dashed var(--border-color); background: transparent;">
-                    <h3 style="margin-top: 0;">+ Add New Task</h3>
-                    <input type="text" id="new-task-title" placeholder="Task Name">
-                    <textarea id="new-task-desc" placeholder="Brief Description" rows="2"></textarea>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <select id="new-task-priority" style="flex: 1;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-                        <select id="new-task-assignee" style="flex: 1;"><option value="">Unassigned</option></select>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <input type="date" id="new-task-date" style="flex: 2;">
-                        <input type="time" id="new-task-time" style="flex: 1;">
-                    </div>
-                    <button class="btn btn-primary" onclick="addTask()" style="margin-top: 15px;">Save Task</button>
-                </div>
             </div>
         </div>
 
@@ -154,6 +141,21 @@
         </div>
     </div>
 
+    <div id="add-job-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddJobModal()">&times;</span>
+            <h2 style="margin-bottom: 15px;">Create New Job</h2>
+            <input type="text" id="add-job-title" placeholder="Job Title">
+            <select id="add-job-priority" style="margin-top: 15px;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
+            <select id="add-job-assignee" style="margin-top: 15px;"><option value="">Unassigned</option></select>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <input type="date" id="add-job-date" style="flex: 2; margin-top: 0;">
+                <input type="time" id="add-job-time" style="flex: 1; margin-top: 0;">
+            </div>
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveNewJob()">Create Job</button>
+        </div>
+    </div>
+
     <div id="edit-job-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close-btn" onclick="closeEditJobModal()">&times;</span>
@@ -161,11 +163,7 @@
             <label style="font-weight: bold; font-size: 14px;">Job Title</label>
             <input type="text" id="edit-job-title">
             <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Priority</label>
-            <select id="edit-job-priority">
-                <option value="Normal">Normal</option>
-                <option value="High">High</option>
-                <option value="Low">Low</option>
-            </select>
+            <select id="edit-job-priority"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
             <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Assign To</label>
             <select id="edit-job-assignee"><option value="">Unassigned</option></select>
             <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Start Date & Time</label>
@@ -174,6 +172,24 @@
                 <input type="time" id="edit-job-time" style="flex: 1;">
             </div>
             <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveEditedJob()">Update Job</button>
+        </div>
+    </div>
+
+    <div id="add-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddTaskModal()">&times;</span>
+            <h2 style="margin-bottom: 15px;">Add New Task</h2>
+            <input type="text" id="new-task-title" placeholder="Task Name">
+            <textarea id="new-task-desc" placeholder="Brief Description" rows="2" style="margin-top: 10px;"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <select id="new-task-priority" style="flex: 1;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
+                <select id="new-task-assignee" style="flex: 1;"><option value="">Unassigned</option></select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <input type="date" id="new-task-date" style="flex: 2;">
+                <input type="time" id="new-task-time" style="flex: 1;">
+            </div>
+            <button class="btn btn-primary" onclick="addTask()" style="margin-top: 20px;">Save Task</button>
         </div>
     </div>
 
@@ -196,21 +212,6 @@
                 <input type="time" id="edit-task-time" style="flex: 1;">
             </div>
             <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveEditedTask()">Update Task</button>
-        </div>
-    </div>
-
-    <div id="add-job-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeAddJobModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">Create New Job</h2>
-            <input type="text" id="add-job-title" placeholder="Job Title">
-            <select id="add-job-priority" style="margin-top: 15px;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-            <select id="add-job-assignee" style="margin-top: 15px;"><option value="">Unassigned</option></select>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <input type="date" id="add-job-date" style="flex: 2; margin-top: 0;">
-                <input type="time" id="add-job-time" style="flex: 1; margin-top: 0;">
-            </div>
-            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveNewJob()">Create Job</button>
         </div>
     </div>
 

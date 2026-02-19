@@ -806,7 +806,7 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
-// 100% BULLETPROOF PRINTING (Timer Race-Condition Fix)
+// 100% BULLETPROOF PRINTING (Manual Return Fix for Mobile)
 function executePrint() { 
     const previewHTML = document.getElementById('print-preview-area').innerHTML;
     if (!previewHTML || previewHTML.trim() === '') return alert("There is nothing to print!");
@@ -815,53 +815,51 @@ function executePrint() {
     const mainApp = document.getElementById('main-app-wrapper');
     const allModals = document.querySelectorAll('.modal');
 
-    // 1. Copy preview to the real print area
-    printArea.innerHTML = previewHTML;
-
-    // 2. Hide everything else
+    // 1. Close modal & physically hide the app
+    closePrintModal();
     mainApp.style.display = 'none';
     allModals.forEach(m => m.style.display = 'none');
     
-    // 3. Format print area
+    // 2. Format the print area to take over the screen
     printArea.classList.remove('hidden');
     printArea.style.display = 'block';
     printArea.style.background = 'white';
     printArea.style.color = 'black';
-    printArea.style.position = 'absolute';
-    printArea.style.top = '0';
-    printArea.style.left = '0';
-    printArea.style.width = '100%';
+    printArea.style.padding = '20px';
     printArea.style.minHeight = '100vh';
-    printArea.style.zIndex = '9999';
 
-    // Fallback: If a phone fails to close the print view automatically, tapping the screen fixes it.
-    printArea.onclick = restoreAppAfterPrint;
+    // 3. Inject the list PLUS a manual return button (which hides itself on paper)
+    printArea.innerHTML = `
+        <style>
+            @media print { .no-print-btn { display: none !important; } }
+        </style>
+        <button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="width: 100%; margin-bottom: 25px; font-size: 16px; padding: 15px;">
+            ⬅️ Done Printing (Return to App)
+        </button>
+        ${previewHTML}
+    `;
 
-    // 4. Give the phone 1 full second to render the HTML, THEN trigger the PDF snapshot
+    // 4. Give Android DOM time to settle, then pop the print dialog
     setTimeout(() => { 
         window.print(); 
-        // Notice: We deleted the 500ms restoration timer here. We now wait patiently for the OS.
-    }, 1000); 
+        // We do NOT auto-restore here anymore! The user will click the button when ready.
+    }, 500); 
 }
 
-// Master Restoration Function
+// Master Restoration Function (Triggered by the blue button)
 function restoreAppAfterPrint() {
     const printArea = document.getElementById('real-print-area');
     printArea.classList.add('hidden');
     printArea.style.display = 'none';
+    printArea.innerHTML = ''; // clear it out
     
+    // Bring the app back
     document.getElementById('main-app-wrapper').style.display = 'block';
-    
-    // FIX: Strip the inline "display: none" off the modals so they can be opened again
     const allModals = document.querySelectorAll('.modal');
     allModals.forEach(m => m.style.display = '');
-    
-    closePrintModal();
 }
 
-// OS Sensor: When the user closes the PDF dialog, put the app back together automatically
-window.addEventListener('afterprint', restoreAppAfterPrint);
-
+// We remove the buggy Android 'afterprint' listener completely.
 function printSingleJob() { openPrintModal(); }
 
 // --- CHANGELOG MODAL (FOLDER-BASED SYSTEM) ---

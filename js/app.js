@@ -806,7 +806,7 @@ function generatePrintPreview() {
     printArea.innerHTML = html;
 }
 
-// 100% BULLETPROOF PRINTING (Physical DOM Swap Fix)
+// 100% BULLETPROOF PRINTING (Timer Race-Condition Fix)
 function executePrint() { 
     const previewHTML = document.getElementById('print-preview-area').innerHTML;
     if (!previewHTML || previewHTML.trim() === '') return alert("There is nothing to print!");
@@ -815,14 +815,14 @@ function executePrint() {
     const mainApp = document.getElementById('main-app-wrapper');
     const allModals = document.querySelectorAll('.modal');
 
-    // Step 1: Copy the preview into the real print area
+    // 1. Copy preview to the real print area
     printArea.innerHTML = previewHTML;
 
-    // Step 2: Physically hide the entire rest of the app
+    // 2. Hide everything else
     mainApp.style.display = 'none';
     allModals.forEach(m => m.style.display = 'none');
     
-    // Step 3: Show ONLY the print area and force white background / black text
+    // 3. Format print area
     printArea.classList.remove('hidden');
     printArea.style.display = 'block';
     printArea.style.background = 'white';
@@ -831,27 +831,36 @@ function executePrint() {
     printArea.style.top = '0';
     printArea.style.left = '0';
     printArea.style.width = '100%';
+    printArea.style.minHeight = '100vh';
+    printArea.style.zIndex = '9999';
 
-    // Step 4: Fire print dialog
+    // Fallback: If a phone fails to close the print view automatically, tapping the screen fixes it.
+    printArea.onclick = restoreAppAfterPrint;
+
+    // 4. Give the phone 1 full second to render the HTML, THEN trigger the PDF snapshot
     setTimeout(() => { 
         window.print(); 
-        
-        // Step 5: Restore the app automatically
-        setTimeout(() => {
-            printArea.classList.add('hidden');
-            printArea.style.display = 'none';
-            mainApp.style.display = 'block';
-            closePrintModal();
-        }, 500);
-    }, 300); 
+        // Notice: We deleted the 500ms restoration timer here. We now wait patiently for the OS.
+    }, 1000); 
 }
 
-// Listen for mobile browser "done printing" event just to be safe
-window.addEventListener('afterprint', () => {
-    document.getElementById('real-print-area').classList.add('hidden');
-    document.getElementById('real-print-area').style.display = 'none';
+// Master Restoration Function
+function restoreAppAfterPrint() {
+    const printArea = document.getElementById('real-print-area');
+    printArea.classList.add('hidden');
+    printArea.style.display = 'none';
+    
     document.getElementById('main-app-wrapper').style.display = 'block';
-});
+    
+    // FIX: Strip the inline "display: none" off the modals so they can be opened again
+    const allModals = document.querySelectorAll('.modal');
+    allModals.forEach(m => m.style.display = '');
+    
+    closePrintModal();
+}
+
+// OS Sensor: When the user closes the PDF dialog, put the app back together automatically
+window.addEventListener('afterprint', restoreAppAfterPrint);
 
 function printSingleJob() { openPrintModal(); }
 

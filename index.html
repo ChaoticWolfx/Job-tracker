@@ -256,6 +256,12 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js?v=print-tasks-fixed"></script>
+    <script type="module">
+    // Auto-Cache Buster: Forces the browser to grab the freshest app.js every single load
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'js/app.js?v=' + new Date().getTime();
+    document.body.appendChild(script);
+</script>
 </body>
 </html>

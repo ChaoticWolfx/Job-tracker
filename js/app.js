@@ -33,6 +33,7 @@ let teamMembers = [];
 let adminViewJobs = []; 
 let currentJobId = null;
 let viewingArchives = false;
+let sharedJobData = null; // Stored so the print function can access it cleanly
 
 // --- SHARED LINK ROUTING ---
 const urlParams = new URLSearchParams(window.location.search);
@@ -49,26 +50,29 @@ async function loadSharedJob(firebaseDocId) {
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists() && docSnap.data().isShared === true) {
-            const jobData = docSnap.data();
+            sharedJobData = docSnap.data(); // Save for printing!
             document.getElementById('shared-job-view').classList.remove('hidden');
-            document.getElementById('shared-job-title').innerText = jobData.title || "Untitled Job";
-            document.getElementById('shared-job-owner').innerText = "Created by: " + (jobData.owner || "Unknown User");
+            document.getElementById('shared-job-title').innerText = sharedJobData.title || "Untitled Job";
+            document.getElementById('shared-job-owner').innerText = "Created by: " + (sharedJobData.owner || "Unknown User");
             
             const container = document.getElementById('shared-tasks-container');
             container.innerHTML = '';
             
-            if(!jobData.tasks || jobData.tasks.length === 0) {
+            if(!sharedJobData.tasks || sharedJobData.tasks.length === 0) {
                 container.innerHTML = '<p style="color:var(--gray);">No tasks found.</p>';
             } else {
-                jobData.tasks.forEach(task => {
-                    let color = task.status === 'Complete' ? 'var(--success)' : (task.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
+                sharedJobData.tasks.forEach(task => {
+                    let isComplete = task.status === 'Complete';
+                    let color = isComplete ? 'var(--success)' : (task.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
+                    let checkmark = isComplete ? '✅ ' : '';
+                    let titleStyle = isComplete ? 'text-decoration: line-through; color: var(--gray);' : '';
                     let dateStr = task.dueDate ? `<br><span style="font-size:13px; color:#d9534f;">📅 Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''}</span>` : '';
                     let asgn = task.assignedTo ? `<br><span style="font-size:13px; color:var(--primary);">👤 ${task.assignedTo}</span>` : '';
                     let desc = task.desc ? `<p style="font-size:14px; color:var(--gray); margin-top:5px;">${task.desc}</p>` : '';
                     
                     container.innerHTML += `
                         <div style="background:var(--light-gray); padding:15px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border-color);">
-                            <strong>${task.title}</strong> <span style="color:${color}; font-size:12px; font-weight:bold; float:right;">[${task.status}]</span>
+                            <strong style="${titleStyle}">${checkmark}${task.title}</strong> <span style="color:${color}; font-size:12px; font-weight:bold; float:right;">[${task.status}]</span>
                             ${desc}${asgn}${dateStr}
                         </div>
                     `;
@@ -148,7 +152,7 @@ if (!sharedJobId) {
             document.getElementById('user-profile-pic').classList.add('hidden');
             document.getElementById('app-footer').classList.add('hidden');
             document.getElementById('admin-overview-btn').classList.add('hidden');
-            document.getElementById('header-title').innerText = "Job Tracker";
+            document.getElementById('header-title').innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>Job Tracker`;
         }
     });
 }
@@ -271,6 +275,7 @@ function populateDropdowns() {
         if(el) el.innerHTML = optionsHTML;
     });
 }
+
 // --- Jobs Logic & Drag-and-Drop ---
 let jobSortable = null;
 
@@ -298,6 +303,14 @@ function renderJobs() {
         const completed = job.tasks ? job.tasks.filter(t => t.status === 'Complete').length : 0;
         const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
         
+        // Dynamic Progress Bar Color Logic
+        let barColor = 'var(--danger)'; // Default Red
+        if (percent === 100) { barColor = 'var(--success)'; } // Green
+        else if (percent >= 50) { barColor = 'var(--warning)'; } // Yellow
+        
+        // If there are zero tasks, make the bar grey
+        if (total === 0) barColor = 'var(--gray)';
+
         let badges = '';
         if(job.priority === 'High') badges += `<span class="badge badge-High">High</span> `;
         if(job.priority === 'Low') badges += `<span class="badge badge-Low">Low</span> `;
@@ -306,12 +319,11 @@ function renderJobs() {
 
         const card = document.createElement('div');
         card.className = 'card'; 
-        card.dataset.id = job.id; // Needed for Drag and Drop tracking
+        card.dataset.id = job.id;
         card.onclick = () => viewJob(job.id);
         card.style.opacity = job.isArchived ? '0.7' : '1';
         card.style.cursor = 'pointer';
         
-        // Notice the modern icons and drag handle!
         card.innerHTML = `
             <div style="position:absolute; top:15px; right:15px; display:flex; gap:5px; align-items:center;">
                 <button class="btn-icon" onclick="event.stopPropagation(); deleteJobFromHome(${job.id})" title="Delete Job" style="color: var(--danger);">🗑️</button>
@@ -319,32 +331,25 @@ function renderJobs() {
             </div>
             ${badges ? `<div style="margin-bottom:10px; padding-right: 70px; display:flex; flex-wrap:wrap; gap:5px;">${badges}</div>` : ''}
             <h3 style="padding-right: 70px; margin: 0 0 5px 0;">${job.title || 'Untitled Job'} ${job.isArchived ? '(Archived)' : ''}</h3>
-            <p style="color: var(--gray); font-size: 14px; margin: 0 0 10px 0;">${total > 0 ? `${completed}/${total} Tasks Done` : 'No tasks'}</p>
-            <div class="progress-container"><div class="progress-fill" style="width: ${percent}%;"></div></div>
+            <p style="color: var(--gray); font-size: 14px; margin: 0 0 10px 0;">${total > 0 ? `${completed}/${total} Tasks Done (${percent}%)` : 'No tasks'}</p>
+            <div class="progress-container"><div class="progress-fill" style="width: ${percent}%; background-color: ${barColor};"></div></div>
         `;
         container.appendChild(card);
     });
 
-    // Initialize Native Drag and Drop for Jobs
     if (jobSortable) jobSortable.destroy();
     jobSortable = Sortable.create(container, {
-        handle: '.drag-handle',
-        animation: 150,
-        ghostClass: 'sortable-ghost',
+        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
         onEnd: async function (evt) {
             const items = container.querySelectorAll('.card');
             let newOrderIds = Array.from(items).map(el => parseInt(el.dataset.id));
-            
             const visibleJobs = jobs.filter(j => viewingArchives ? j.isArchived : !j.isArchived);
             const hiddenJobs = jobs.filter(j => viewingArchives ? !j.isArchived : j.isArchived);
-            
             visibleJobs.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
-            jobs = [...visibleJobs, ...hiddenJobs];
-            await saveData();
+            jobs = [...visibleJobs, ...hiddenJobs]; await saveData();
         }
     });
 }
-
 function openAddJobModal() {
     populateDropdowns();
     document.getElementById('add-job-title').value = '';
@@ -361,8 +366,7 @@ async function saveNewJob() {
     if (!title) { alert("Please enter a job title."); return; }
 
     jobs.push({ 
-        id: Date.now(), 
-        title: title, 
+        id: Date.now(), title: title, 
         priority: document.getElementById('add-job-priority').value, 
         assignedTo: document.getElementById('add-job-assignee').value, 
         startDate: document.getElementById('add-job-date').value, 
@@ -428,9 +432,7 @@ function renderTasks() {
     if (!job.tasks) job.tasks = [];
 
     let displayTasks = job.tasks;
-    if (hideCompleted) {
-        displayTasks = displayTasks.filter(t => t.status !== 'Complete');
-    }
+    if (hideCompleted) { displayTasks = displayTasks.filter(t => t.status !== 'Complete'); }
 
     if(displayTasks.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:20px; padding:20px;">No tasks visible.</p>`;
@@ -461,7 +463,7 @@ function renderTasks() {
 
         const taskEl = document.createElement('div');
         taskEl.className = `task-row task-${task.status.replace(' ', '-')}`;
-        taskEl.dataset.id = task.id; // Needed for Drag and Drop
+        taskEl.dataset.id = task.id;
 
         let checkmark = isComplete ? '✅ ' : '';
         let titleClass = isComplete ? 'task-title-completed' : '';
@@ -494,68 +496,35 @@ function renderTasks() {
         container.appendChild(taskEl);
     });
 
-    // Initialize Native Drag and Drop for Tasks
     if (taskSortable) taskSortable.destroy();
     taskSortable = Sortable.create(container, {
-        handle: '.drag-handle',
-        animation: 150,
-        ghostClass: 'sortable-ghost',
+        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
         onEnd: async function(evt) {
             const jobIndex = jobs.findIndex(j => j.id === currentJobId);
             const items = container.querySelectorAll('.task-row');
             let newOrderIds = Array.from(items).map(el => parseInt(el.dataset.id));
-            
-            // If completed items are hidden, we must preserve their position at the bottom
             const visibleTasks = jobs[jobIndex].tasks.filter(t => hideCompleted ? t.status !== 'Complete' : true);
             const hiddenTasks = jobs[jobIndex].tasks.filter(t => hideCompleted ? t.status === 'Complete' : false);
-            
             visibleTasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
             jobs[jobIndex].tasks = [...visibleTasks, ...hiddenTasks];
-            
             await saveData();
         }
     });
 }
 
-// --- Edit Task Logic ---
-let editingTaskId = null;
-function openEditTaskModal(taskId) {
-    editingTaskId = taskId;
+// --- Add & Edit Task Logic ---
+function openAddTaskModal() {
     populateDropdowns();
-    const job = jobs.find(j => j.id === currentJobId);
-    const task = job.tasks.find(t => t.id === taskId);
-    
-    document.getElementById('edit-task-title').value = task.title;
-    document.getElementById('edit-task-desc').value = task.desc || '';
-    document.getElementById('edit-task-priority').value = task.priority || 'Normal';
-    document.getElementById('edit-task-assignee').value = task.assignedTo || '';
-    document.getElementById('edit-task-date').value = task.dueDate || '';
-    document.getElementById('edit-task-time').value = task.dueTime || '';
-    
-    document.getElementById('edit-task-modal').classList.remove('hidden');
+    document.getElementById('new-task-title').value = '';
+    document.getElementById('new-task-desc').value = '';
+    document.getElementById('new-task-priority').value = 'Normal';
+    document.getElementById('new-task-assignee').value = '';
+    document.getElementById('new-task-date').value = '';
+    document.getElementById('new-task-time').value = '';
+    document.getElementById('add-task-modal').classList.remove('hidden');
 }
 
-function closeEditTaskModal() { 
-    document.getElementById('edit-task-modal').classList.add('hidden'); 
-    editingTaskId = null; 
-}
-
-async function saveEditedTask() {
-    const title = document.getElementById('edit-task-title').value.trim();
-    if (!title) return alert("Task name cannot be empty.");
-
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === editingTaskId);
-    
-    jobs[jobIndex].tasks[taskIndex].title = title;
-    jobs[jobIndex].tasks[taskIndex].desc = document.getElementById('edit-task-desc').value.trim();
-    jobs[jobIndex].tasks[taskIndex].priority = document.getElementById('edit-task-priority').value;
-    jobs[jobIndex].tasks[taskIndex].assignedTo = document.getElementById('edit-task-assignee').value;
-    jobs[jobIndex].tasks[taskIndex].dueDate = document.getElementById('edit-task-date').value;
-    jobs[jobIndex].tasks[taskIndex].dueTime = document.getElementById('edit-task-time').value;
-
-    closeEditTaskModal(); renderTasks(); await saveData();
-}
+function closeAddTaskModal() { document.getElementById('add-task-modal').classList.add('hidden'); }
 
 async function addTask() {
     const title = document.getElementById('new-task-title').value.trim();
@@ -572,33 +541,54 @@ async function addTask() {
         dueTime: document.getElementById('new-task-time').value
     });
 
-    // Clear inputs
-    document.getElementById('new-task-title').value = ''; document.getElementById('new-task-desc').value = '';
-    document.getElementById('new-task-priority').value = 'Normal'; document.getElementById('new-task-assignee').value = '';
-    document.getElementById('new-task-date').value = ''; document.getElementById('new-task-time').value = '';
-    
-    renderTasks(); await saveData(); 
+    closeAddTaskModal(); renderTasks(); await saveData(); 
+}
+
+let editingTaskId = null;
+function openEditTaskModal(taskId) {
+    editingTaskId = taskId; populateDropdowns();
+    const job = jobs.find(j => j.id === currentJobId);
+    const task = job.tasks.find(t => t.id === taskId);
+    document.getElementById('edit-task-title').value = task.title;
+    document.getElementById('edit-task-desc').value = task.desc || '';
+    document.getElementById('edit-task-priority').value = task.priority || 'Normal';
+    document.getElementById('edit-task-assignee').value = task.assignedTo || '';
+    document.getElementById('edit-task-date').value = task.dueDate || '';
+    document.getElementById('edit-task-time').value = task.dueTime || '';
+    document.getElementById('edit-task-modal').classList.remove('hidden');
+}
+
+function closeEditTaskModal() { document.getElementById('edit-task-modal').classList.add('hidden'); editingTaskId = null; }
+
+async function saveEditedTask() {
+    const title = document.getElementById('edit-task-title').value.trim();
+    if (!title) return alert("Task name cannot be empty.");
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
+    const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === editingTaskId);
+    jobs[jobIndex].tasks[taskIndex].title = title;
+    jobs[jobIndex].tasks[taskIndex].desc = document.getElementById('edit-task-desc').value.trim();
+    jobs[jobIndex].tasks[taskIndex].priority = document.getElementById('edit-task-priority').value;
+    jobs[jobIndex].tasks[taskIndex].assignedTo = document.getElementById('edit-task-assignee').value;
+    jobs[jobIndex].tasks[taskIndex].dueDate = document.getElementById('edit-task-date').value;
+    jobs[jobIndex].tasks[taskIndex].dueTime = document.getElementById('edit-task-time').value;
+    closeEditTaskModal(); renderTasks(); await saveData();
 }
 
 async function updateTaskStatus(taskId, newStatus) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     jobs[jobIndex].tasks[taskIndex].status = newStatus;
-    
-    // SMART SORTING: If marked Complete, instantly sink it to the bottom of the list!
     if (newStatus === 'Complete') {
         const completedTask = jobs[jobIndex].tasks.splice(taskIndex, 1)[0];
         jobs[jobIndex].tasks.push(completedTask);
     }
-    
     renderTasks(); await saveData(); 
 }
 
 async function updateTaskNotes(taskId, notes) {
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
     const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
-    jobs[jobIndex].tasks[taskIndex].notes = notes;
-    await saveData();
+    jobs[jobIndex].tasks[taskIndex].notes = notes; await saveData();
 }
 
 async function deleteTask(taskId) {
@@ -629,7 +619,6 @@ function createCalendarLink(title, startDate, startTime, description) {
 }
 function pushSavedJobToCalendar() { const job = jobs.find(j => j.id === currentJobId); if(job) createCalendarLink(job.title, job.startDate, job.startTime, "Job Start Date"); }
 function pushSavedTaskToCalendar(taskId) { const job = jobs.find(j => j.id === currentJobId); const task = job.tasks.find(t => t.id === taskId); if(task) createCalendarLink(task.title, task.dueDate, task.dueTime, task.desc); }
-
 
 // --- ADMIN & SHARE ---
 async function shareCurrentJob() {
@@ -720,7 +709,7 @@ async function cloneJob(firebaseId) {
     jobs.push(newJob); alert(`Imported!`); renderJobs(); await saveData();
 }
 
-// --- CONTEXT-AWARE PRINT LOGIC (Manual Return & DOM Swap) ---
+// --- CONTEXT-AWARE PRINT LOGIC (Checkmarks & Layout Updates) ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
     const isJobView = currentJobId !== null;
@@ -757,7 +746,14 @@ function generatePrintPreview() {
         else {
             html += `<ul style="list-style-type: none; padding-left: 0;">`;
             tasksToPrint.forEach(task => {
-                html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;"><div style="font-size: 18px;"><div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>${task.title}${task.assignedTo ? ` <strong>(Lead: ${getAssigneeText(task.assignedTo)})</strong>` : ''}${task.dueDate ? ` <span style="color:#d9534f; float:right;">[Due: ${task.dueDate}]</span>` : ''}</div>`;
+                let checkmark = task.status === 'Complete' ? '✅ ' : '';
+                let boxCheck = task.status === 'Complete' ? '✓' : '';
+                html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
+                    <div style="font-size: 18px;">
+                        <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px; text-align:center; line-height:18px; font-size:14px;">${boxCheck}</div>
+                        ${checkmark}${task.title} <span style="font-size: 14px; color: #555;">[${task.status}]</span>
+                        ${task.assignedTo ? ` <strong style="font-size:14px;">(Lead: ${getAssigneeText(task.assignedTo)})</strong>` : ''}${task.dueDate ? ` <span style="color:#d9534f; float:right; font-size:14px;">[Due: ${task.dueDate}]</span>` : ''}
+                    </div>`;
                 if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;">Desc: ${task.desc}</div>`;
                 if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555; font-style: italic;">Notes: ${task.notes}</div>`;
                 html += `</li>`;
@@ -773,7 +769,14 @@ function generatePrintPreview() {
             jobsToPrint.forEach(job => {
                 html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}</h3>`;
                 if(!job.tasks || job.tasks.length === 0) html += `<p style="margin-left:15px; color:#555;">No tasks.</p>`;
-                else { html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`; job.tasks.forEach(task => { html += `<li><strong>${task.title}</strong> - Status: <em>${task.status}</em></li>`; }); html += `</ul>`; }
+                else { 
+                    html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`; 
+                    job.tasks.forEach(task => { 
+                        let checkmark = task.status === 'Complete' ? '✅ ' : '';
+                        html += `<li><strong>${checkmark}${task.title}</strong> - Status: <em>${task.status}</em></li>`; 
+                    }); 
+                    html += `</ul>`; 
+                }
                 html += `</div>`;
             });
         }
@@ -795,15 +798,31 @@ function executePrint() {
     setTimeout(() => { window.print(); }, 500); 
 }
 
+// Cleaned up Shared Job Printing
 function printSharedJob() {
+    if(!sharedJobData) return;
     const printArea = document.getElementById('real-print-area');
-    const title = document.getElementById('shared-job-title').innerText;
-    const owner = document.getElementById('shared-job-owner').innerText;
-    const tasksHTML = document.getElementById('shared-tasks-container').innerHTML;
     
     document.getElementById('main-app-wrapper').style.display = 'none';
     printArea.classList.remove('hidden'); printArea.style.display = 'block'; printArea.style.background = 'white'; printArea.style.color = 'black'; printArea.style.padding = '20px'; printArea.style.minHeight = '100vh';
-    printArea.innerHTML = `<style>@media print { .no-print-btn { display: none !important; } }</style><button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="width: 100%; margin-bottom: 25px; font-size: 16px; padding: 15px;">⬅️ Done Printing (Return to App)</button><div style="font-family:sans-serif; color:black;"><h2>${title}</h2><p style="color: #555; margin-bottom: 5px;">${owner}</p><p style="color: #555; margin-bottom: 20px;">Printed: ${new Date().toLocaleDateString()}</p><hr style="margin-bottom: 20px;">${tasksHTML}</div>`;
+    
+    let tasksHTML = '<ul style="list-style-type: none; padding-left: 0;">';
+    if(sharedJobData.tasks) {
+        sharedJobData.tasks.forEach(task => {
+            let checkmark = task.status === 'Complete' ? '✅ ' : '';
+            let boxCheck = task.status === 'Complete' ? '✓' : '';
+            tasksHTML += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
+                <div style="font-size: 18px;">
+                    <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px; text-align:center; line-height:18px; font-size:14px;">${boxCheck}</div>
+                    ${checkmark}${task.title} <span style="font-size: 14px; color: #555;">[${task.status}]</span>
+                </div>
+                ${task.desc ? `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;">Desc: ${task.desc}</div>` : ''}
+            </li>`;
+        });
+    }
+    tasksHTML += '</ul>';
+
+    printArea.innerHTML = `<style>@media print { .no-print-btn { display: none !important; } }</style><button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="width: 100%; margin-bottom: 25px; font-size: 16px; padding: 15px;">⬅️ Done Printing (Return to App)</button><div style="font-family:sans-serif; color:black;"><h2>${sharedJobData.title || 'Untitled'} - Site Checklist</h2><p style="color: #555; margin-bottom: 5px;">Created by: ${sharedJobData.owner || 'Unknown'}</p><p style="color: #555; margin-bottom: 20px;">Printed: ${new Date().toLocaleDateString()}</p><hr style="margin-bottom: 20px;">${tasksHTML}</div>`;
 
     setTimeout(() => { window.print(); }, 500);
 }
@@ -838,7 +857,7 @@ async function loadMoreLogs() {
     }
     if (currentLogIndex >= logFilesList.length) { if(loadBtn) loadBtn.style.display = 'none'; if(container.innerHTML === '') container.innerHTML = '<p style="color:var(--gray); text-align:center;">No updates found.</p>'; } else { if(loadBtn) { loadBtn.style.display = 'inline-block'; loadBtn.innerText = "Show More"; } }
 }
-function printSingleJob() { openPrintModal(); }
+
 // Global scope mapping
 window.loginWithEmail = loginWithEmail; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;
@@ -847,12 +866,13 @@ window.shareCurrentJob = shareCurrentJob; window.openChangelogModal = openChange
 window.loadMoreLogs = loadMoreLogs; window.openAboutModal = openAboutModal; window.closeAboutModal = closeAboutModal; 
 window.openAddJobModal = openAddJobModal; window.closeAddJobModal = closeAddJobModal; window.saveNewJob = saveNewJob; 
 window.openEditJobModal = openEditJobModal; window.closeEditJobModal = closeEditJobModal; window.saveEditedJob = saveEditedJob;
+window.openAddTaskModal = openAddTaskModal; window.closeAddTaskModal = closeAddTaskModal; window.addTask = addTask; 
 window.openEditTaskModal = openEditTaskModal; window.closeEditTaskModal = closeEditTaskModal; window.saveEditedTask = saveEditedTask;
 window.openTeamModal = openTeamModal; window.closeTeamModal = closeTeamModal; window.addTeamMember = addTeamMember; window.removeTeamMember = removeTeamMember; 
 window.toggleArchives = toggleArchives; window.openPrintModal = openPrintModal; window.closePrintModal = closePrintModal; 
 window.generatePrintPreview = generatePrintPreview; window.executePrint = executePrint; window.goHome = goHome; 
 window.archiveCurrentJob = archiveCurrentJob; window.deleteCurrentJob = deleteCurrentJob; window.deleteJobFromHome = deleteJobFromHome; 
-window.addTask = addTask; window.deleteTask = deleteTask; 
+window.deleteTask = deleteTask; 
 window.updateTaskStatus = updateTaskStatus; window.updateTaskNotes = updateTaskNotes; window.viewJob = viewJob; 
 window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; 
 window.pushSavedJobToCalendar = pushSavedJobToCalendar; window.pushSavedTaskToCalendar = pushSavedTaskToCalendar;

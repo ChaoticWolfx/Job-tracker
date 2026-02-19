@@ -923,6 +923,54 @@ async function loadMoreLogs() {
     }
 }
 
+// --- SHARED JOB PRINT LOGIC (Bulletproof DOM Swap) ---
+function printSharedJob() {
+    const printArea = document.getElementById('real-print-area');
+    const mainApp = document.getElementById('main-app-wrapper');
+    
+    // Grab the content currently visible on the shared screen
+    const title = document.getElementById('shared-job-title').innerText;
+    const owner = document.getElementById('shared-job-owner').innerText;
+    const tasksHTML = document.getElementById('shared-tasks-container').innerHTML;
+    const dateStr = new Date().toLocaleDateString();
+
+    // 1. Hide the main app completely
+    mainApp.style.display = 'none';
+    
+    // 2. Format the print area to take over the screen
+    printArea.classList.remove('hidden');
+    printArea.style.display = 'block';
+    printArea.style.background = 'white';
+    printArea.style.color = 'black';
+    printArea.style.padding = '20px';
+    printArea.style.minHeight = '100vh';
+
+    // 3. Inject the clean list PLUS the manual return button
+    printArea.innerHTML = `
+        <style>
+            @media print { .no-print-btn { display: none !important; } }
+        </style>
+        <button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="width: 100%; margin-bottom: 25px; font-size: 16px; padding: 15px;">
+            ⬅️ Done Printing (Return to App)
+        </button>
+        <div style="font-family:sans-serif; color:black;">
+            <h2>${title}</h2>
+            <p style="color: #555; margin-bottom: 5px;">${owner}</p>
+            <p style="color: #555; margin-bottom: 20px;">Printed: ${dateStr}</p>
+            <hr style="margin-bottom: 20px;">
+            ${tasksHTML}
+        </div>
+    `;
+
+    // 4. Give Android time to settle, then pop the print dialog
+    setTimeout(() => { 
+        window.print(); 
+    }, 500);
+}
+
+// Make sure the button can see the function
+window.printSharedJob = printSharedJob;
+
 // Global scope mapping
 window.loginWithEmail = loginWithEmail; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;

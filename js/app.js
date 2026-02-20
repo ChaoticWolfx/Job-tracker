@@ -191,9 +191,6 @@ async function handleEmailAuth() {
 }
 
 async function loginWithGoogle() {
-// (Leave the rest of the code below here alone)
-
-async function loginWithGoogle() {
     try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); }
 }
 async function logout() { await signOut(auth); }

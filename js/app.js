@@ -157,13 +157,41 @@ if (!sharedJobId) {
     });
 }
 
-// --- LOGIN COMMANDS ---
-async function loginWithEmail() {
+// --- LOGIN & SIGNUP COMMANDS ---
+let isSignUpMode = false;
+
+function toggleAuthMode() {
+    isSignUpMode = !isSignUpMode;
+    const title = document.getElementById('auth-title');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const toggleText = document.getElementById('auth-toggle-text');
+    
+    if (isSignUpMode) {
+        title.innerText = "Create an Account";
+        submitBtn.innerText = "Sign Up";
+        toggleText.innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Log In</a>`;
+    } else {
+        title.innerText = "Welcome Back";
+        submitBtn.innerText = "Log In";
+        toggleText.innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Sign Up</a>`;
+    }
+}
+
+async function handleEmailAuth() {
     const email = document.getElementById('email-input').value.trim();
     const pass = document.getElementById('password-input').value;
     if(!email || !pass) return alert("Please enter email and password.");
-    try { await signInWithEmailAndPassword(auth, email, pass); } catch(e) { alert("Login failed: " + e.message); }
+    try { 
+        if (isSignUpMode) {
+            await createUserWithEmailAndPassword(auth, email, pass);
+        } else {
+            await signInWithEmailAndPassword(auth, email, pass); 
+        }
+    } catch(e) { alert("Authentication failed: " + e.message); }
 }
+
+async function loginWithGoogle() {
+// (Leave the rest of the code below here alone)
 
 async function loginWithGoogle() {
     try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); }

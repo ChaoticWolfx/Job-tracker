@@ -884,7 +884,7 @@ async function loadMoreLogs() {
 }
 function printSingleJob() { openPrintModal(); }
 // Global scope mapping
-window.loginWithEmail = loginWithEmail; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
+window.toggleAuthMode = toggleAuthMode; window.handleEmailAuth = handleEmailAuth; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;
 window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.cloneJob = cloneJob; 
 window.shareCurrentJob = shareCurrentJob; window.openChangelogModal = openChangelogModal; window.closeChangelogModal = closeChangelogModal; 

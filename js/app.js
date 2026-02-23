@@ -3,7 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, deleteDoc, addDoc, orderBy, limit, startAfter, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// Your specific Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBpeJ6rGw24Mf_xcno9zj9Q6MQW-2HuuMA",
     authDomain: "jobtracker-4d6eb.firebaseapp.com",
@@ -17,7 +16,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
 const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
 
 let currentUserUid = null;
@@ -31,6 +29,44 @@ let currentJobId = null;
 let viewingArchives = false;
 let sharedJobData = null;
 let currentPendingInvite = null;
+
+// --- SHARED LINK ROUTING ---
+const urlParams = new URLSearchParams(window.location.search);
+const sharedJobId = urlParams.get('job');
+
+if (sharedJobId) {
+    document.getElementById('login-view').classList.add('hidden');
+    loadSharedJob(sharedJobId);
+}
+
+async function loadSharedJob(firebaseDocId) {
+    try {
+        const docRef = doc(db, "jobs", firebaseDocId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().isShared === true) {
+            sharedJobData = docSnap.data(); 
+            document.getElementById('shared-job-view').classList.remove('hidden');
+            document.getElementById('shared-job-title').innerText = sharedJobData.title || "Untitled Job";
+            document.getElementById('shared-job-owner').innerText = "Created by: " + (sharedJobData.owner || "Unknown User");
+            const container = document.getElementById('shared-tasks-container');
+            container.innerHTML = '';
+            if(!sharedJobData.tasks || sharedJobData.tasks.length === 0) {
+                container.innerHTML = '<p style="color:var(--gray);">No tasks found.</p>';
+            } else {
+                sharedJobData.tasks.forEach(task => {
+                    let isComplete = task.status === 'Complete';
+                    let color = isComplete ? 'var(--success)' : (task.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
+                    let checkmark = isComplete ? '✅ ' : '';
+                    let titleStyle = isComplete ? 'text-decoration: line-through; color: var(--gray);' : '';
+                    let dateStr = task.dueDate ? `<br><span style="font-size:13px; color:#d9534f;">📅 Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''}</span>` : '';
+                    let asgn = task.assignedTo ? `<br><span style="font-size:13px; color:var(--primary);">👤 ${task.assignedTo}</span>` : '';
+                    let desc = task.desc ? `<p style="font-size:14px; color:var(--gray); margin-top:5px;">${task.desc}</p>` : '';
+                    container.innerHTML += `<div style="background:var(--light-gray); padding:15px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border-color);"><strong style="${titleStyle}">${checkmark}${task.title}</strong> <span style="color:${color}; font-size:12px; font-weight:bold; float:right;">[${task.status}]</span>${desc}${asgn}${dateStr}</div>`;
+                });
+            }
+        } else { alert("Link is invalid."); window.location.href = window.location.pathname; }
+    } catch (e) { alert("Error loading job."); window.location.href = window.location.pathname; }
+}
 
 // --- THEME LOGIC ---
 function loadThemePreference() {
@@ -68,38 +104,35 @@ async function handleEmailAuth() {
         else { await signInWithEmailAndPassword(auth, email, pass); }
     } catch(e) { alert("Authentication failed: " + e.message); }
 }
-async function loginWithGoogle() { try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); } }
+async function loginWithGoogle() { try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed."); } }
 async function logout() { await signOut(auth); }
 
 // --- AUTH OBSERVER & DATA LOAD ---
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUserUid = user.uid; currentUserEmail = user.email;
-        currentUserName = user.displayName || user.email.split('@')[0]; 
-        currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
-        
-        try { await setDoc(doc(db, "users", currentUserUid), { uid: currentUserUid, name: currentUserName, email: currentUserEmail, photoURL: currentUserPhoto, lastLogin: Date.now() }, { merge: true }); } catch(e) {}
+if (!sharedJobId) { 
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUserUid = user.uid; currentUserEmail = user.email;
+            currentUserName = user.displayName || user.email.split('@')[0]; 
+            currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
+            try { await setDoc(doc(db, "users", currentUserUid), { uid: currentUserUid, name: currentUserName, email: currentUserEmail, photoURL: currentUserPhoto, lastLogin: Date.now() }, { merge: true }); } catch(e) {}
+            document.getElementById('user-profile-pic').src = currentUserPhoto; document.getElementById('user-profile-pic').classList.remove('hidden');
+            document.getElementById('settings-profile-pic').src = currentUserPhoto; document.getElementById('settings-user-name').innerText = currentUserName; document.getElementById('settings-user-email').innerText = currentUserEmail;
+            if (currentUserUid === ADMIN_UID) document.getElementById('admin-overview-btn').classList.remove('hidden'); else document.getElementById('admin-overview-btn').classList.add('hidden');
 
-        document.getElementById('user-profile-pic').src = currentUserPhoto; document.getElementById('user-profile-pic').classList.remove('hidden');
-        document.getElementById('settings-profile-pic').src = currentUserPhoto; document.getElementById('settings-user-name').innerText = currentUserName; document.getElementById('settings-user-email').innerText = currentUserEmail;
-
-        if (currentUserUid === ADMIN_UID) document.getElementById('admin-overview-btn').classList.remove('hidden');
-        else document.getElementById('admin-overview-btn').classList.add('hidden');
-
-        await checkForPendingInvites(); await loadData();
-        
-        document.getElementById('login-view').classList.add('hidden'); document.getElementById('home-view').classList.remove('hidden');
-        document.getElementById('logout-btn').classList.remove('hidden'); document.getElementById('app-footer').classList.remove('hidden');
-        
-        viewingArchives = false; renderJobs();
-    } else {
-        currentUserUid = null; currentUserName = null; currentUserPhoto = null; jobs = []; teamMembers = []; currentPendingInvite = null;
-        document.getElementById('login-view').classList.remove('hidden'); document.getElementById('home-view').classList.add('hidden');
-        document.getElementById('job-detail-view').classList.add('hidden'); document.getElementById('logout-btn').classList.add('hidden');
-        document.getElementById('user-profile-pic').classList.add('hidden'); document.getElementById('app-footer').classList.add('hidden');
-        document.getElementById('admin-overview-btn').classList.add('hidden');
-    }
-});
+            await checkForPendingInvites(); await loadData();
+            
+            document.getElementById('login-view').classList.add('hidden'); document.getElementById('home-view').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden'); document.getElementById('app-footer').classList.remove('hidden');
+            viewingArchives = false; renderJobs();
+        } else {
+            currentUserUid = null; currentUserName = null; currentUserPhoto = null; jobs = []; teamMembers = []; currentPendingInvite = null;
+            document.getElementById('login-view').classList.remove('hidden'); document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('job-detail-view').classList.add('hidden'); document.getElementById('logout-btn').classList.add('hidden');
+            document.getElementById('user-profile-pic').classList.add('hidden'); document.getElementById('app-footer').classList.add('hidden');
+            document.getElementById('admin-overview-btn').classList.add('hidden');
+        }
+    });
+}
 
 async function loadData() { 
     if (!currentUserUid) return;
@@ -193,6 +226,7 @@ function renderTeamList() { const list = document.getElementById('team-list'); l
 function populateDropdowns() { let optionsHTML = '<option value="">Unassigned</option>'; teamMembers.forEach(member => { optionsHTML += `<option value="${member.name}">${member.name} (${member.role})</option>`; }); ['add-job-assignee', 'new-task-assignee', 'edit-job-assignee', 'edit-task-assignee'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = optionsHTML; }); }
 // --- Jobs Logic & Drag-and-Drop ---
 let jobSortable = null;
+
 function toggleArchives() {
     viewingArchives = !viewingArchives;
     const btn = document.getElementById('toggle-archive-btn');
@@ -363,7 +397,7 @@ function renderTasks() {
     });
 }
 
-// --- Add & Edit Task/Job Logic ---
+// --- Add & Edit Job Logic ---
 function openAddJobModal() {
     populateDropdowns();
     document.getElementById('add-job-title').value = ''; document.getElementById('add-job-priority').value = 'Normal';
@@ -398,6 +432,7 @@ async function saveEditedJob() {
     closeEditJobModal(); renderTasks(); await saveData();
 }
 
+// --- Add & Edit Task Logic ---
 function openAddTaskModal() {
     populateDropdowns(); document.getElementById('new-task-title').value = ''; document.getElementById('new-task-desc').value = '';
     document.getElementById('new-task-priority').value = 'Normal'; document.getElementById('new-task-assignee').value = '';
@@ -454,6 +489,7 @@ async function deleteTask(taskId) {
         renderTasks(); await saveData();
     }
 }
+
 // --- CALENDAR LOGIC (UNIVERSAL) ---
 function createCalendarLink(title, startDate, startTime, description) {
     if (!startDate) return alert("Please select a Date first so we know when to add it to the Calendar!");

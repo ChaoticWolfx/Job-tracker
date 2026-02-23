@@ -26,26 +26,56 @@
 
         <main style="padding: 15px; padding-bottom: 80px;">
             
-            <div id="login-view" style="max-width: 400px; margin: 40px auto; text-align: center; background: var(--light-gray); padding: 30px; border-radius: 10px;">
-                <h2 id="auth-title">Welcome Back</h2>
-                <input type="email" id="email-input" placeholder="Email Address" style="margin-bottom: 10px;">
-                <input type="password" id="password-input" placeholder="Password" style="margin-bottom: 15px;">
-                <button id="auth-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="handleEmailAuth()">Log In</button>
-                <p id="auth-toggle-text" style="font-size: 14px; margin-bottom: 20px;">Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary); font-weight: bold;">Sign Up</a></p>
-                <hr style="border-color: var(--border-color); margin-bottom: 20px;">
-                <button class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="loginWithGoogle()">
-                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                    Continue with Google
-                </button>
+            <div id="login-view" style="display: flex; flex-direction: column; align-items: center; padding-top: 10px;">
+                
+                <div style="max-width: 800px; text-align: center; margin-bottom: 40px;">
+                    <h1 style="font-size: 2.5em; color: var(--primary); margin-bottom: 10px;">Field Operations, Mastered.</h1>
+                    <p style="font-size: 1.1em; color: var(--gray); margin-bottom: 25px; line-height: 1.5;">The ultimate task management platform built for crews, contractors, and individuals who need to get things done on the site and in the office.</p>
+                    
+                    <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 30px;">
+                        <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
+                            <h3 style="margin-top: 0; margin-bottom: 5px;">👷 Team Invites</h3>
+                            <p style="font-size: 14px; color: var(--gray); margin: 0;">Assign tasks directly to specific crew members with laser-focused permissions.</p>
+                        </div>
+                        <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
+                            <h3 style="margin-top: 0; margin-bottom: 5px;">🖨️ Smart Printing</h3>
+                            <p style="font-size: 14px; color: var(--gray); margin: 0;">Generate perfectly formatted, professional physical checklists instantly.</p>
+                        </div>
+                        <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
+                            <h3 style="margin-top: 0; margin-bottom: 5px;">☁️ Universal Sync</h3>
+                            <p style="font-size: 14px; color: var(--gray); margin: 0;">Access your jobs and real-time updates from any phone, tablet, or computer.</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; gap: 15px;">
+                        <button class="btn btn-outline" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
+                        <button class="btn btn-outline" onclick="openChangelogModal()">📢 View Changelog</button>
+                    </div>
+                </div>
+
+                <div style="max-width: 400px; width: 100%; text-align: center; background: var(--light-gray); padding: 30px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <h2 id="auth-title" style="margin-top: 0;">Access Your Workspace</h2>
+                    <input type="email" id="email-input" placeholder="Email Address" style="margin-bottom: 10px;">
+                    <input type="password" id="password-input" placeholder="Password" style="margin-bottom: 15px;">
+                    <button id="auth-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="handleEmailAuth()">Log In</button>
+                    <p id="auth-toggle-text" style="font-size: 14px; margin-bottom: 20px;">Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary); font-weight: bold;">Sign Up</a></p>
+                    <hr style="border-color: var(--border-color); margin-bottom: 20px;">
+                    <button class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="loginWithGoogle()">
+                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Continue with Google
+                    </button>
+                </div>
             </div>
 
             <div id="home-view" class="hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h2 style="margin: 0;">Active Jobs</h2>
                     <button id="toggle-archive-btn" class="btn-small" style="background: var(--light-gray); color: var(--text);" onclick="toggleArchives()">Show Archives</button>
                 </div>
+                
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px; font-size: 16px; padding: 12px;" onclick="openAddJobModal()">+ Create New Job</button>
+                
                 <div id="jobs-container"></div>
-                <button class="btn btn-primary btn-fab" onclick="openAddJobModal()">+ Add Job</button>
             </div>
 
             <div id="job-detail-view" class="hidden">
@@ -69,8 +99,9 @@
                     </label>
                 </div>
                 
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px; font-size: 16px; padding: 12px;" onclick="openAddTaskModal()">+ Add New Task</button>
+
                 <div id="tasks-container"></div>
-                <button class="btn btn-primary btn-fab" onclick="openAddTaskModal()">+ Add Task</button>
             </div>
 
             <div id="shared-job-view" class="hidden">
@@ -173,7 +204,7 @@
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-top: 0;">About TaskGrid</h2>
             <p><strong>Version:</strong> 4.0 (Enterprise Base)</p>
-            <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">Built for the field. Engineered for scale.</p>
+            <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px; line-height: 1.6;">TaskGrid was built from the ground up for field operators, crews, and teams who need a reliable, lightning-fast way to organize jobs, sync across devices, and print professional checklists.</p>
             <button class="btn btn-primary" style="width: 100%;" onclick="closeAboutModal()">Close</button>
         </div>
     </div>

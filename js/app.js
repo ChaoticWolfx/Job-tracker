@@ -109,6 +109,44 @@ function toggleDarkMode() {
 }
 loadThemePreference();
 
+// --- LOGIN & SIGNUP COMMANDS ---
+let isSignUpMode = false;
+
+function toggleAuthMode() {
+    isSignUpMode = !isSignUpMode;
+    const title = document.getElementById('auth-title');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const toggleText = document.getElementById('auth-toggle-text');
+    
+    if (isSignUpMode) {
+        title.innerText = "Create an Account";
+        submitBtn.innerText = "Sign Up";
+        toggleText.innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Log In</a>`;
+    } else {
+        title.innerText = "Welcome Back";
+        submitBtn.innerText = "Log In";
+        toggleText.innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Sign Up</a>`;
+    }
+}
+
+async function handleEmailAuth() {
+    const email = document.getElementById('email-input').value.trim();
+    const pass = document.getElementById('password-input').value;
+    if(!email || !pass) return alert("Please enter email and password.");
+    try { 
+        if (isSignUpMode) {
+            await createUserWithEmailAndPassword(auth, email, pass);
+        } else {
+            await signInWithEmailAndPassword(auth, email, pass); 
+        }
+    } catch(e) { alert("Authentication failed: " + e.message); }
+}
+
+async function loginWithGoogle() {
+    try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); }
+}
+async function logout() { await signOut(auth); }
+
 // --- AUTHENTICATION STATE OBSERVER ---
 if (!sharedJobId) { 
     onAuthStateChanged(auth, async (user) => {
@@ -156,44 +194,6 @@ if (!sharedJobId) {
         }
     });
 }
-
-// --- LOGIN & SIGNUP COMMANDS ---
-let isSignUpMode = false;
-
-function toggleAuthMode() {
-    isSignUpMode = !isSignUpMode;
-    const title = document.getElementById('auth-title');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const toggleText = document.getElementById('auth-toggle-text');
-    
-    if (isSignUpMode) {
-        title.innerText = "Create an Account";
-        submitBtn.innerText = "Sign Up";
-        toggleText.innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Log In</a>`;
-    } else {
-        title.innerText = "Welcome Back";
-        submitBtn.innerText = "Log In";
-        toggleText.innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Sign Up</a>`;
-    }
-}
-
-async function handleEmailAuth() {
-    const email = document.getElementById('email-input').value.trim();
-    const pass = document.getElementById('password-input').value;
-    if(!email || !pass) return alert("Please enter email and password.");
-    try { 
-        if (isSignUpMode) {
-            await createUserWithEmailAndPassword(auth, email, pass);
-        } else {
-            await signInWithEmailAndPassword(auth, email, pass); 
-        }
-    } catch(e) { alert("Authentication failed: " + e.message); }
-}
-
-async function loginWithGoogle() {
-    try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); }
-}
-async function logout() { await signOut(auth); }
 
 // --- SETTINGS MODAL ---
 function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
@@ -328,12 +328,9 @@ function renderJobs() {
         const completed = job.tasks ? job.tasks.filter(t => t.status === 'Complete').length : 0;
         const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
         
-        // Dynamic Progress Bar Color Logic
-        let barColor = 'var(--danger)'; // Default Red
-        if (percent === 100) { barColor = 'var(--success)'; } // Green
-        else if (percent >= 50) { barColor = 'var(--warning)'; } // Yellow
-        
-        // If there are zero tasks, make the bar grey
+        let barColor = 'var(--danger)';
+        if (percent === 100) { barColor = 'var(--success)'; }
+        else if (percent >= 50) { barColor = 'var(--warning)'; }
         if (total === 0) barColor = 'var(--gray)';
 
         let badges = '';
@@ -734,7 +731,7 @@ async function cloneJob(firebaseId) {
     jobs.push(newJob); alert(`Imported!`); renderJobs(); await saveData();
 }
 
-// --- CONTEXT-AWARE PRINT LOGIC (Checkmarks & Layout Updates) ---
+// --- CONTEXT-AWARE PRINT LOGIC (CLEAN CHECKMARKS) ---
 function openPrintModal() { 
     document.getElementById('print-modal').classList.remove('hidden'); 
     const isJobView = currentJobId !== null;
@@ -764,6 +761,7 @@ function generatePrintPreview() {
     
     let html = '';
     if (currentJobId !== null) {
+        // SINGLE JOB CHECKLIST
         const job = jobs.find(j => j.id === currentJobId);
         html = `<div style="color:black; font-family:sans-serif; background:white; padding:10px;"><h2>${job.title} - Site Checklist</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
         const tasksToPrint = (job.tasks || []).filter(t => selectedIds.includes(String(t.id)));
@@ -771,22 +769,33 @@ function generatePrintPreview() {
         else {
             html += `<ul style="list-style-type: none; padding-left: 0;">`;
             tasksToPrint.forEach(task => {
-                let checkmark = task.status === 'Complete' ? '✅ ' : '';
-                let boxCheck = task.status === 'Complete' ? '✓' : '';
+                let isComplete = task.status === 'Complete';
+                
+                // ONLY green check OR empty box
+                let statusIcon = isComplete 
+                    ? `<span style="margin-right:15px; font-size:18px;">✅</span>` 
+                    : `<div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>`;
+                
+                let titleStyle = isComplete ? 'text-decoration: line-through; color: #555;' : 'color: black;';
+
                 html += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
-                    <div style="font-size: 18px;">
-                        <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px; text-align:center; line-height:18px; font-size:14px;">${boxCheck}</div>
-                        ${checkmark}${task.title} <span style="font-size: 14px; color: #555;">[${task.status}]</span>
-                        ${task.assignedTo ? ` <strong style="font-size:14px;">(Lead: ${getAssigneeText(task.assignedTo)})</strong>` : ''}${task.dueDate ? ` <span style="color:#d9534f; float:right; font-size:14px;">[Due: ${task.dueDate}]</span>` : ''}
+                    <div style="font-size: 18px; display: flex; align-items: center;">
+                        ${statusIcon}
+                        <span style="${titleStyle}">${task.title}</span> 
+                        <span style="font-size: 14px; color: #555; margin-left: 10px;">[${task.status}]</span>
                     </div>`;
-                if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;">Desc: ${task.desc}</div>`;
-                if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555; font-style: italic;">Notes: ${task.notes}</div>`;
+                    
+                if (task.assignedTo) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px;"><strong>Lead:</strong> ${getAssigneeText(task.assignedTo)}</div>`;
+                if (task.dueDate) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color:#d9534f;"><strong>Due:</strong> ${task.dueDate}</div>`;
+                if (task.desc) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;"><strong>Desc:</strong> ${task.desc}</div>`;
+                if (task.notes) html += `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #555; font-style: italic;"><strong>Notes:</strong> ${task.notes}</div>`;
                 html += `</li>`;
             });
             html += `</ul>`;
         }
         html += `</div>`;
     } else {
+        // MAIN HOME SCREEN JOBS PRINT
         html = `<div style="color:black; font-family:sans-serif; background:white; padding:10px;"><h2>${currentUserName}'s Active Jobs</h2><p style="margin-bottom: 20px; color: #555;">Generated: ${dateStr}</p><hr style="margin-bottom: 20px;">`;
         const jobsToPrint = jobs.filter(j => selectedIds.includes(String(j.id)));
         if(jobsToPrint.length === 0) html += `<p>No jobs selected.</p>`;
@@ -795,10 +804,16 @@ function generatePrintPreview() {
                 html += `<div style="margin-bottom: 25px;"><h3 style="font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}</h3>`;
                 if(!job.tasks || job.tasks.length === 0) html += `<p style="margin-left:15px; color:#555;">No tasks.</p>`;
                 else { 
-                    html += `<ul style="margin-left: 25px; list-style-type: square; line-height: 1.6;">`; 
+                    html += `<ul style="margin-left: 0; padding-left: 15px; list-style-type: none; line-height: 1.6;">`; 
                     job.tasks.forEach(task => { 
-                        let checkmark = task.status === 'Complete' ? '✅ ' : '';
-                        html += `<li><strong>${checkmark}${task.title}</strong> - Status: <em>${task.status}</em></li>`; 
+                        let isComplete = task.status === 'Complete';
+                        
+                        let statusIcon = isComplete 
+                            ? `<span style="margin-right:10px; font-size:16px;">✅</span>` 
+                            : `<div style="display:inline-block; width:14px; height:14px; border:2px solid black; margin-right:10px; vertical-align:middle; border-radius:2px;"></div>`;
+                            
+                        let titleStyle = isComplete ? 'text-decoration: line-through; color: #555;' : 'color: black;';
+                        html += `<li style="margin-bottom: 8px; display: flex; align-items: center;"><strong style="${titleStyle}; display:flex; align-items:center;">${statusIcon}${task.title}</strong> <span style="margin-left:10px; font-size:14px; color:#666;"> - <em>${task.status}</em></span></li>`; 
                     }); 
                     html += `</ul>`; 
                 }
@@ -834,14 +849,22 @@ function printSharedJob() {
     let tasksHTML = '<ul style="list-style-type: none; padding-left: 0;">';
     if(sharedJobData.tasks) {
         sharedJobData.tasks.forEach(task => {
-            let checkmark = task.status === 'Complete' ? '✅ ' : '';
-            let boxCheck = task.status === 'Complete' ? '✓' : '';
+            let isComplete = task.status === 'Complete';
+            
+            // Clean toggle between ✅ and empty box
+            let statusIcon = isComplete 
+                ? `<span style="margin-right:15px; font-size:18px;">✅</span>` 
+                : `<div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>`;
+            
+            let titleStyle = isComplete ? 'text-decoration: line-through; color: #555;' : 'color: black;';
+
             tasksHTML += `<li style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
-                <div style="font-size: 18px;">
-                    <div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px; text-align:center; line-height:18px; font-size:14px;">${boxCheck}</div>
-                    ${checkmark}${task.title} <span style="font-size: 14px; color: #555;">[${task.status}]</span>
+                <div style="font-size: 18px; display: flex; align-items: center;">
+                    ${statusIcon}
+                    <span style="${titleStyle}">${task.title}</span> 
+                    <span style="font-size: 14px; color: #555; margin-left: 10px;">[${task.status}]</span>
                 </div>
-                ${task.desc ? `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;">Desc: ${task.desc}</div>` : ''}
+                ${task.desc ? `<div style="margin-left: 37px; margin-top: 5px; font-size: 14px; color: #333;"><strong>Desc:</strong> ${task.desc}</div>` : ''}
             </li>`;
         });
     }
@@ -882,7 +905,9 @@ async function loadMoreLogs() {
     }
     if (currentLogIndex >= logFilesList.length) { if(loadBtn) loadBtn.style.display = 'none'; if(container.innerHTML === '') container.innerHTML = '<p style="color:var(--gray); text-align:center;">No updates found.</p>'; } else { if(loadBtn) { loadBtn.style.display = 'inline-block'; loadBtn.innerText = "Show More"; } }
 }
+
 function printSingleJob() { openPrintModal(); }
+
 // Global scope mapping
 window.toggleAuthMode = toggleAuthMode; window.handleEmailAuth = handleEmailAuth; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;

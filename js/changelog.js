@@ -769,6 +769,8 @@ function generatePrintPreview() {
             html += `<ul style="list-style-type: none; padding-left: 0;">`;
             tasksToPrint.forEach(task => {
                 let isComplete = task.status === 'Complete';
+                
+                // If complete, ONLY show the green check. If incomplete, ONLY show the empty square box.
                 let statusIcon = isComplete 
                     ? `<span style="margin-right:15px; font-size:18px;">✅</span>` 
                     : `<div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>`;
@@ -842,6 +844,8 @@ function printSharedJob() {
     if(sharedJobData.tasks) {
         sharedJobData.tasks.forEach(task => {
             let isComplete = task.status === 'Complete';
+            
+            // Clean toggle between ✅ and empty box
             let statusIcon = isComplete 
                 ? `<span style="margin-right:15px; font-size:18px;">✅</span>` 
                 : `<div style="display:inline-block; width:18px; height:18px; border:2px solid black; margin-right:15px; vertical-align:middle; border-radius:3px;"></div>`;

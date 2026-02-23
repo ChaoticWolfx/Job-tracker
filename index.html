@@ -3,323 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Job Tracker v3.0</title>
+    <title>TaskGrid</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
 
+    <div id="real-print-area" class="hidden"></div>
+
     <div id="main-app-wrapper">
-        <header id="app-header">
-            <span id="header-title">
+        
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--header-bg); color: white;">
+            <h1 id="header-title" style="margin: 0; font-size: 20px;">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                Job Tracker
-            </span>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="logout-btn" class="btn-small hidden" style="background: rgba(255,255,255,0.2); border: none; color: white;" onclick="logout()">Logout</button>
-                <img id="user-profile-pic" src="" class="profile-pic hidden" style="width: 35px; height: 35px; border-radius: 50%; cursor: pointer; border: 2px solid white; object-fit: cover;" onclick="openSettingsModal()" alt="Profile">
+                TaskGrid
+            </h1>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <img id="user-profile-pic" src="" alt="Profile" class="hidden" style="width: 32px; height: 32px; border-radius: 50%; cursor: pointer;" onclick="openSettingsModal()">
+                <button id="logout-btn" class="btn-outline hidden" style="border-color: white; color: white;" onclick="logout()">Log Out</button>
             </div>
         </header>
 
-        <div class="container">
+        <main style="padding: 15px; padding-bottom: 80px;">
             
-            <div id="login-view" style="max-width: 400px; margin: 4vh auto 40px auto; text-align: center;">
-                
-                <div style="background: var(--card-bg); padding: 30px 20px; border-radius: var(--radius); border: 1px solid var(--border-color); box-shadow: var(--shadow); margin-bottom: 30px;">
-                    <h2 id="auth-title" style="font-size: 26px; margin-bottom: 5px; letter-spacing: -0.5px;">Welcome Back</h2>
-                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">Sign in or create an account to access your jobs.</p>
-                    
-                    <div style="text-align: left;">
-                        <input type="email" id="email-input" placeholder="Email Address">
-                        <input type="password" id="password-input" placeholder="Password">
-                        <button id="auth-submit-btn" class="btn btn-primary" onclick="handleEmailAuth()" style="margin-top: 15px;">Log In</button>
-                    </div>
-                    
-                    <p id="auth-toggle-text" style="font-size: 14px; color: var(--gray); margin-top: 15px;">
-                        Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Sign Up</a>
-                    </p>
-                    
-                    <div style="display: flex; align-items: center; margin: 25px 0; color: var(--gray); font-size: 13px; font-weight: 600; text-transform: uppercase;">
-                        <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
-                        <span style="padding: 0 15px;">OR</span>
-                        <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
-                    </div>
-                    
-                    <button class="btn btn-outline" onclick="loginWithGoogle()" style="display: flex; justify-content: center; align-items: center; gap: 10px; background: var(--card-bg);">
-                        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
-                        Continue with Google
-                    </button>
-                </div>
-
-                <div style="text-align: left; padding: 10px;">
-                    <h3 style="font-size: 18px; margin-bottom: 20px; color: var(--text); border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">What is Job Tracker?</h3>
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <div style="display: flex; gap: 15px; align-items: flex-start;">
-                            <div style="font-size: 26px; background: var(--light-gray); padding: 10px; border-radius: 8px;">📋</div>
-                            <div>
-                                <strong style="font-size: 15px; color: var(--text);">Manage Projects Effortlessly</strong>
-                                <p style="margin: 3px 0 0 0; font-size: 14px; color: var(--gray); line-height: 1.4;">Build tasks, track progress with dynamic visual bars, and sync everything instantly to the cloud.</p>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 15px; align-items: flex-start;">
-                            <div style="font-size: 26px; background: var(--light-gray); padding: 10px; border-radius: 8px;">🤝</div>
-                            <div>
-                                <strong style="font-size: 15px; color: var(--text);">Team Collaboration</strong>
-                                <p style="margin: 3px 0 0 0; font-size: 14px; color: var(--gray); line-height: 1.4;">Add your crew, assign specific tasks, and generate read-only links to share progress with clients.</p>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 15px; align-items: flex-start;">
-                            <div style="font-size: 26px; background: var(--light-gray); padding: 10px; border-radius: 8px;">🖨️</div>
-                            <div>
-                                <strong style="font-size: 15px; color: var(--text);">Site-Ready Printing</strong>
-                                <p style="margin: 3px 0 0 0; font-size: 14px; color: var(--gray); line-height: 1.4;">Generate clean, professional physical checklists formatted perfectly straight from your phone.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 40px; font-size: 14px; display: flex; justify-content: center; gap: 20px;">
-                    <a href="#" style="color: var(--gray); text-decoration: none; font-weight: 600; padding: 5px;" onclick="openChangelogModal()">Updates (v3.0)</a>
-                    <a href="#" style="color: var(--gray); text-decoration: none; font-weight: 600; padding: 5px;" onclick="openAboutModal()">About App</a>
-                </div>
-            </div>
-
-            <div id="shared-job-view" class="hidden">
-                <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                    <button class="btn btn-primary btn-small" onclick="window.location.href=window.location.pathname">← Go to Main App</button>
-                    <button class="btn btn-info btn-small" onclick="printSharedJob()">🖨️ Print</button>
-                </div>
-                
-                <div style="background: var(--card-bg); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <span style="font-size: 12px; font-weight: bold; color: var(--primary); text-transform: uppercase;">Shared Document</span>
-                    <h2 id="shared-job-title" style="margin-top: 5px; margin-bottom: 5px;"></h2>
-                    <p id="shared-job-owner" style="color: var(--gray); font-size: 14px;"></p>
-                </div>
-                
-                <h3 style="margin-bottom: 10px;">Tasks Overview</h3>
-                <div id="shared-tasks-container"></div>
+            <div id="login-view" style="max-width: 400px; margin: 40px auto; text-align: center; background: var(--light-gray); padding: 30px; border-radius: 10px;">
+                <h2 id="auth-title">Welcome Back</h2>
+                <input type="email" id="email-input" placeholder="Email Address" style="margin-bottom: 10px;">
+                <input type="password" id="password-input" placeholder="Password" style="margin-bottom: 15px;">
+                <button id="auth-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="handleEmailAuth()">Log In</button>
+                <p id="auth-toggle-text" style="font-size: 14px; margin-bottom: 20px;">Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary); font-weight: bold;">Sign Up</a></p>
+                <hr style="border-color: var(--border-color); margin-bottom: 20px;">
+                <button class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="loginWithGoogle()">
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </button>
             </div>
 
             <div id="home-view" class="hidden">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button class="btn btn-primary" onclick="openAddJobModal()" style="flex: 1;">+ Add Job</button>
-                    <button class="btn btn-outline" onclick="openTeamModal()" style="flex: 1;">👥 Team</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Active Jobs</h2>
+                    <button id="toggle-archive-btn" class="btn-small" style="background: var(--light-gray); color: var(--text);" onclick="toggleArchives()">Show Archives</button>
                 </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button class="btn btn-small" id="toggle-archive-btn" onclick="toggleArchives()" style="flex: 1; background: var(--light-gray); border: 1px solid var(--border-color); color: var(--text);">Show Archives</button>
-                    <button class="btn btn-info btn-small" onclick="openPrintModal()" style="flex: 1;">🖨️ Print List</button>
-                </div>
-
-                <button id="admin-overview-btn" class="btn btn-warning hidden" style="margin-bottom: 20px;" onclick="openAllUsersJobsModal()">📋 Admin Panel</button>
-
                 <div id="jobs-container"></div>
+                <button class="btn btn-primary btn-fab" onclick="openAddJobModal()">+ Add Job</button>
             </div>
 
             <div id="job-detail-view" class="hidden">
-                <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center;">
-                    <button class="btn-icon" style="font-size: 24px;" onclick="goHome()">←</button>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-icon" title="Edit Job" onclick="openEditJobModal()">✏️</button>
-                        <button class="btn-icon" title="Share" onclick="shareCurrentJob()">🔗</button>
-                        <button class="btn-icon" title="Print" onclick="printSingleJob()">🖨️</button>
-                        <button class="btn-icon" title="Archive" onclick="archiveCurrentJob()">📦</button>
-                        <button class="btn-icon" style="color: var(--danger);" title="Delete" onclick="deleteCurrentJob()">🗑️</button>
-                    </div>
-                </div>
+                <button class="btn btn-outline" style="margin-bottom: 15px;" onclick="goHome()">⬅️ Back to Jobs</button>
                 
-                <div id="current-job-badges"></div>
-                <h2 id="current-job-title" style="margin-bottom: 5px;"></h2>
-                <div id="current-job-calendar-action" style="margin-bottom: 15px;"></div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                    <h3 style="margin: 0;">Tasks</h3>
-                    <div style="display: flex; gap: 15px; align-items: center;">
-                        <label style="font-size: 13px; color: var(--gray); cursor: pointer;">
-                            <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Completed
-                        </label>
-                        <button class="btn btn-primary btn-small" style="margin: 0;" onclick="openAddTaskModal()">+ Add Task</button>
+                <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 20px; position: relative;">
+                    <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 10px;">
+                        <button class="btn-icon" onclick="openEditJobModal()" title="Edit Job Details">⚙️</button>
+                        <button class="btn-icon" onclick="shareCurrentJob()" title="Share Job Link">🔗</button>
+                        <button class="btn-icon" onclick="archiveCurrentJob()" title="Archive Job">📦</button>
                     </div>
+                    <div id="current-job-badges" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px; padding-right: 90px;"></div>
+                    <h2 id="current-job-title" style="margin-top: 0; margin-bottom: 10px; padding-right: 90px;">Job Title</h2>
+                    <div id="current-job-calendar-action"></div>
                 </div>
 
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">Task Checklist</h3>
+                    <label style="font-size: 14px; color: var(--gray); display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Done
+                    </label>
+                </div>
+                
                 <div id="tasks-container"></div>
+                <button class="btn btn-primary btn-fab" onclick="openAddTaskModal()">+ Add Task</button>
             </div>
-        </div>
 
-        <footer id="app-footer" class="hidden" style="text-align: center; padding: 20px; border-top: 1px solid var(--border-color); margin-top: 40px;">
-            <a href="#" style="color: var(--gray); text-decoration: none; font-weight: 600;" onclick="openChangelogModal()">Change Updates Log</a>
-            <span style="color: var(--border-color); margin: 0 10px;">|</span>
-            <a href="#" style="color: var(--gray); text-decoration: none; font-weight: 600;" onclick="openAboutModal()">About this App</a>
-        </footer>
-    </div>
-
-    <div id="settings-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeSettingsModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">User Settings</h2>
-            
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 15px; background: var(--light-gray); border-radius: 8px;">
-                <img id="settings-profile-pic" src="" style="width: 55px; height: 55px; border-radius: 50%; border: 2px solid var(--border-color); object-fit: cover;">
-                <div>
-                    <strong id="settings-user-name" style="font-size: 18px;"></strong><br>
-                    <span id="settings-user-email" style="font-size: 14px; color: var(--gray);"></span>
+            <div id="shared-job-view" class="hidden">
+                <div style="background: var(--primary); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                    <h2 id="shared-job-title" style="margin: 0 0 10px 0;">Loading Job...</h2>
+                    <p id="shared-job-owner" style="margin: 0; opacity: 0.9;">Created by: ...</p>
+                    <button class="btn" style="background: white; color: var(--primary); margin-top: 15px; font-weight: bold;" onclick="printSharedJob()">🖨️ Print Checklist</button>
+                </div>
+                <div id="shared-tasks-container"></div>
+                <div style="text-align: center; margin-top: 30px;">
+                    <p style="color: var(--gray); font-size: 14px;">Powered by TaskGrid</p>
+                    <button class="btn btn-outline" onclick="window.location.href=window.location.pathname">Create Your Own Account</button>
                 </div>
             </div>
 
-            <h3 style="font-size: 16px; margin-bottom: 10px; color: var(--gray); border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Preferences</h3>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 16px; padding: 10px 0; cursor: pointer;">
-                <span>🌙 Dark Mode</span>
-                <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()" style="width: auto; transform: scale(1.3);">
-            </label>
-        </div>
-    </div>
+        </main>
 
-    <div id="add-job-modal" class="modal hidden">
+        <footer id="app-footer" class="hidden" style="position: fixed; bottom: 0; width: 100%; background: var(--header-bg); padding: 10px; display: flex; justify-content: space-around; border-top: 1px solid var(--border-color);">
+            <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="goHome()"><span>🏠</span>Home</button>
+            <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openTeamModal()"><span>👷</span>Team</button>
+            <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openPrintModal()"><span>🖨️</span>Print</button>
+            <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openSettingsModal()"><span>⚙️</span>Settings</button>
+        </footer>
+    </div> <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeAddJobModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">Create New Job</h2>
-            <input type="text" id="add-job-title" placeholder="Job Title">
-            <select id="add-job-priority" style="margin-top: 15px;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-            <select id="add-job-assignee" style="margin-top: 15px;"><option value="">Unassigned</option></select>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <input type="date" id="add-job-date" style="flex: 2; margin-top: 0;">
-                <input type="time" id="add-job-time" style="flex: 1; margin-top: 0;">
+            <h2 style="margin-top: 0;">Settings</h2>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img id="settings-profile-pic" src="" style="width: 64px; height: 64px; border-radius: 50%; margin-bottom: 10px;">
+                <h3 id="settings-user-name" style="margin: 0;">User Name</h3>
+                <p id="settings-user-email" style="color: var(--gray); margin: 5px 0 0 0;">Email</p>
             </div>
-            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveNewJob()">Create Job</button>
-        </div>
-    </div>
+            
+            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <strong>Dark Mode</strong>
+                <label class="switch">
+                    <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
 
-    <div id="edit-job-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeEditJobModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">Edit Job</h2>
-            <label style="font-weight: bold; font-size: 14px;">Job Title</label>
-            <input type="text" id="edit-job-title">
-            <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Priority</label>
-            <select id="edit-job-priority"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-            <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Assign To</label>
-            <select id="edit-job-assignee"><option value="">Unassigned</option></select>
-            <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Start Date & Time</label>
-            <div style="display: flex; gap: 10px;">
-                <input type="date" id="edit-job-date" style="flex: 2;">
-                <input type="time" id="edit-job-time" style="flex: 1;">
-            </div>
-            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveEditedJob()">Update Job</button>
-        </div>
-    </div>
-
-    <div id="add-task-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeAddTaskModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">Add New Task</h2>
-            <input type="text" id="new-task-title" placeholder="Task Name">
-            <textarea id="new-task-desc" placeholder="Brief Description" rows="2" style="margin-top: 10px;"></textarea>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <select id="new-task-priority" style="flex: 1;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-                <select id="new-task-assignee" style="flex: 1;"><option value="">Unassigned</option></select>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <input type="date" id="new-task-date" style="flex: 2;">
-                <input type="time" id="new-task-time" style="flex: 1;">
-            </div>
-            <button class="btn btn-primary" onclick="addTask()" style="margin-top: 20px;">Save Task</button>
-        </div>
-    </div>
-
-    <div id="edit-task-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeEditTaskModal()">&times;</span>
-            <h2 style="margin-bottom: 15px;">Edit Task</h2>
-            <input type="hidden" id="edit-task-id">
-            <label style="font-weight: bold; font-size: 14px;">Task Name</label>
-            <input type="text" id="edit-task-title">
-            <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Description</label>
-            <textarea id="edit-task-desc" rows="2"></textarea>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <select id="edit-task-priority" style="flex: 1;"><option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option></select>
-                <select id="edit-task-assignee" style="flex: 1;"><option value="">Unassigned</option></select>
-            </div>
-            <label style="font-weight: bold; font-size: 14px; margin-top: 10px; display: block;">Due Date & Time</label>
-            <div style="display: flex; gap: 10px;">
-                <input type="date" id="edit-task-date" style="flex: 2;">
-                <input type="time" id="edit-task-time" style="flex: 1;">
-            </div>
-            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveEditedTask()">Update Task</button>
+            <button id="admin-overview-btn" class="btn btn-danger hidden" style="width: 100%; margin-bottom: 10px;" onclick="openAllUsersJobsModal()">👑 God Mode (Admin)</button>
+            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px;" onclick="openChangelogModal()">📢 What's New</button>
+            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px;" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closeSettingsModal()">Close</button>
         </div>
     </div>
 
     <div id="team-modal" class="modal hidden">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeTeamModal()">&times;</span>
-            <h2>My Team</h2>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <input type="text" id="new-team-member" placeholder="Name" style="flex: 1;">
-                <input type="text" id="new-team-role" placeholder="Role" style="flex: 1;">
+            <h2 style="margin-top: 0;">Manage Crew</h2>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button id="tab-btn-manual" class="btn btn-primary" style="flex:1;" onclick="switchTeamTab('manual')">Manual Add</button>
+                <button id="tab-btn-invite" class="btn btn-outline" style="flex:1;" onclick="switchTeamTab('invite')">Email Invite</button>
             </div>
-            <button class="btn btn-primary" style="margin-top: 10px;" onclick="addTeamMember()">Add Member</button>
+            <div id="team-tab-manual">
+                <input type="text" id="new-team-member" placeholder="Subcontractor Name">
+                <input type="text" id="new-team-role" placeholder="Role (e.g., Plumber)">
+                <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="addTeamMember()">+ Add for Printing</button>
+                <p style="font-size:12px; color:var(--gray); margin-top:10px; text-align:center;">Adds name to dropdowns for printing. No app access.</p>
+            </div>
+            <div id="team-tab-invite" class="hidden">
+                <input type="email" id="invite-team-email" placeholder="Worker's Email Address">
+                <select id="invite-team-role" style="width:100%; margin-bottom:10px; padding:10px; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <option value="Worker">Worker (Can only Complete tasks)</option>
+                    <option value="Foreman">Foreman (Can Add/Edit tasks)</option>
+                </select>
+                <button class="btn btn-success" style="width:100%; margin-top:10px;" onclick="sendTeamInvite()">✉️ Send App Invite</button>
+                <p style="font-size:12px; color:var(--gray); margin-top:10px; text-align:center;">They will see this invite when they log in.</p>
+            </div>
             <ul id="team-list" style="margin-top: 20px; list-style: none; padding: 0;"></ul>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px;" onclick="closeTeamModal()">Close</button>
         </div>
     </div>
 
     <div id="all-users-modal" class="modal hidden">
-        <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
-            <span class="close-btn" onclick="closeAllUsersJobsModal()">&times;</span>
-            <h2>Admin Overview</h2>
-            <div id="all-users-container" style="overflow-y: auto; flex: 1; margin-top: 15px;"></div>
-        </div>
-    </div>
-
-    <div id="print-modal" class="modal hidden">
-        <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
-            <span class="close-btn" onclick="closePrintModal()">&times;</span>
-            <h2 id="print-modal-title">Print Preview</h2>
-            <div class="print-top-bar" style="flex-direction: column; align-items: flex-start; gap: 10px;">
-                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                    <label id="print-archive-label" style="font-weight: bold; cursor: pointer;">
-                        <input type="checkbox" id="print-archive-toggle" onchange="openPrintModal()" style="width: auto; margin-right: 5px;"> Show Archives
-                    </label>
-                    <button class="btn btn-info btn-small" onclick="executePrint()" style="margin: 0;">🖨️ Print Now</button>
-                </div>
-                <div style="width: 100%; max-height: 120px; overflow-y: auto; background: var(--card-bg); padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;" id="print-item-selection" onchange="generatePrintPreview()"></div>
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 style="margin-top:0; color:var(--danger);">God Mode (Admin)</h2>
+            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                <h3 style="margin-top:0; margin-bottom: 10px; color: var(--primary);">📢 Broadcast Update</h3>
+                <input type="text" id="admin-changelog-version" placeholder="Version Title (e.g., v3.5 - The Teams Update)">
+                <textarea id="admin-changelog-text" rows="4" placeholder="- Added Team Invites&#10;- Fixed printing bugs" style="margin-bottom: 10px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-family: inherit;"></textarea>
+                <button class="btn btn-primary" onclick="postNewChangelog()" style="width:100%;">Post to Live Changelog</button>
             </div>
-            <div id="print-preview-area" class="print-preview-area" style="flex: 1; overflow-y: auto; margin-top: 15px;"></div>
-        </div>
-    </div>
-
-    <div id="about-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeAboutModal()">&times;</span>
-            <h2 style="margin-bottom: 15px; color: var(--primary);">About Job Tracker v3.0</h2>
-            <p style="font-size: 15px; line-height: 1.6; color: var(--text);">
-                <strong>Job Tracker</strong> is a custom Progressive Web App built to streamline project and task management from the ground up.
-            </p>
-            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-top: 15px;">
-                <p style="font-size: 15px; line-height: 1.8; color: var(--text); margin: 0;">
-                    <strong>Concept & Design:</strong> Matthew Holderness<br>
-                    <strong>Code & Development:</strong> Built with AI
-                </p>
-            </div>
-            <p style="font-size: 13px; color: var(--gray); margin-top: 25px; text-align: center;">
-                &copy; 2026 Matthew Holderness. All rights reserved.
-            </p>
+            <h3 style="margin-bottom: 10px;">User Management</h3>
+            <div id="all-users-container"></div>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px;" onclick="closeAllUsersJobsModal()">Close</button>
         </div>
     </div>
 
     <div id="changelog-modal" class="modal hidden">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeChangelogModal()">&times;</span>
-            <h2>Update History</h2>
-            <div id="changelog-container" style="margin-top: 15px;"></div>
-            <button id="load-more-logs-btn" class="btn btn-small" style="background: var(--light-gray); border: 1px solid var(--border-color); color: var(--text); margin-top: 20px;" onclick="loadMoreLogs()">Show More</button>
+            <h2 style="margin-top: 0;">What's New</h2>
+            <div id="changelog-container"></div>
+            <button id="load-more-logs-btn" class="btn btn-outline" style="width: 100%; margin-top: 10px; display: none;" onclick="loadMoreChangelogs()">Load More History</button>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="closeChangelogModal()">Close</button>
         </div>
     </div>
 
-    <div id="real-print-area" class="hidden" style="font-family: sans-serif; color: black; padding: 20px;"></div>
+    <div id="about-modal" class="modal hidden">
+        <div class="modal-content" style="text-align: center;">
+            <h2 style="margin-top: 0;">About TaskGrid</h2>
+            <p><strong>Version:</strong> 4.0 (Enterprise Base)</p>
+            <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">Built for the field. Engineered for scale.</p>
+            <button class="btn btn-primary" style="width: 100%;" onclick="closeAboutModal()">Close</button>
+        </div>
+    </div>
 
-    <script type="module">
-        const script = document.createElement('script');
-        script.type = 'module';
-        script.src = 'js/app.js?v=' + new Date().getTime(); // Auto Cache Buster!
-        document.body.appendChild(script);
-    </script>
+    <div id="add-job-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Create New Job</h2>
+            <input type="text" id="add-job-title" placeholder="Job Title (e.g., Smith Residence)">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
+            <select id="add-job-priority" style="margin-bottom: 15px;">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Job Lead (Optional)</label>
+            <select id="add-job-assignee" style="margin-bottom: 15px;"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Start Date & Time (Optional)</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="date" id="add-job-date" style="flex: 2; margin-bottom: 0;">
+                <input type="time" id="add-job-time" style="flex: 1; margin-bottom: 0;">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveNewJob()">Save Job</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closeAddJobModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="edit-job-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Edit Job Details</h2>
+            <input type="text" id="edit-job-title" placeholder="Job Title">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
+            <select id="edit-job-priority" style="margin-bottom: 15px;">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Job Lead</label>
+            <select id="edit-job-assignee" style="margin-bottom: 15px;"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Start Date & Time</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="date" id="edit-job-date" style="flex: 2; margin-bottom: 0;">
+                <input type="time" id="edit-job-time" style="flex: 1; margin-bottom: 0;">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveEditedJob()">Update Details</button>
+            <button class="btn btn-danger" style="width: 100%; margin-bottom: 10px;" onclick="deleteCurrentJob()">🗑️ Delete Job</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closeEditJobModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="add-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Add Task</h2>
+            <input type="text" id="new-task-title" placeholder="Task Name (e.g., Master Bath Rough-in)">
+            <textarea id="new-task-desc" placeholder="Details/Instructions (Optional)" rows="2"></textarea>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
+            <select id="new-task-priority" style="margin-bottom: 15px;">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Assigned To</label>
+            <select id="new-task-assignee" style="margin-bottom: 15px;"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due Date & Time (Optional)</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="date" id="new-task-date" style="flex: 2; margin-bottom: 0;">
+                <input type="time" id="new-task-time" style="flex: 1; margin-bottom: 0;">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="addTask()">Save Task</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closeAddTaskModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="edit-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Edit Task</h2>
+            <input type="text" id="edit-task-title" placeholder="Task Name">
+            <textarea id="edit-task-desc" placeholder="Details/Instructions" rows="2"></textarea>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
+            <select id="edit-task-priority" style="margin-bottom: 15px;">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Assigned To</label>
+            <select id="edit-task-assignee" style="margin-bottom: 15px;"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due Date & Time</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="date" id="edit-task-date" style="flex: 2; margin-bottom: 0;">
+                <input type="time" id="edit-task-time" style="flex: 1; margin-bottom: 0;">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveEditedTask()">Update Task</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closeEditTaskModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="print-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="print-modal-title" style="margin-top: 0;">Print Formatting</h2>
+            <p style="color: var(--gray); font-size: 14px; margin-bottom: 15px;">Select the items you want to appear on the printed sheet.</p>
+            
+            <label id="print-archive-label" style="display: flex; align-items: center; gap: 10px; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-weight: bold;">
+                <input type="checkbox" id="print-archive-toggle" onchange="openPrintModal()"> Include Archived Jobs
+            </label>
+            
+            <div id="print-item-selection" style="max-height: 250px; overflow-y: auto; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                </div>
+            
+            <div style="display: none;" id="print-preview-area"></div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px; font-size: 16px; padding: 12px;" onclick="executePrint()">🖨️ Create Print Sheet</button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="closePrintModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

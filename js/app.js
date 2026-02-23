@@ -1,6 +1,6 @@
 // Import Firebase & Auth directly from the web
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, deleteDoc, addDoc, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // Your specific Firebase configuration
@@ -257,9 +257,33 @@ function viewJob(jobId) {
     populateDropdowns(); renderTasks();
 }
 
-// --- Team Management ---
+// --- Team Management & Invites ---
 function openTeamModal() { renderTeamList(); document.getElementById('team-modal').classList.remove('hidden'); }
 function closeTeamModal() { document.getElementById('team-modal').classList.add('hidden'); }
+
+function switchTeamTab(tab) {
+    if(tab === 'manual') {
+        document.getElementById('team-tab-manual').classList.remove('hidden');
+        document.getElementById('team-tab-invite').classList.add('hidden');
+        document.getElementById('tab-btn-manual').className = 'btn btn-primary';
+        document.getElementById('tab-btn-invite').className = 'btn btn-outline';
+    } else {
+        document.getElementById('team-tab-manual').classList.add('hidden');
+        document.getElementById('team-tab-invite').classList.remove('hidden');
+        document.getElementById('tab-btn-manual').className = 'btn btn-outline';
+        document.getElementById('tab-btn-invite').className = 'btn btn-primary';
+    }
+}
+
+async function sendTeamInvite() {
+    const email = document.getElementById('invite-team-email').value.trim().toLowerCase();
+    const role = document.getElementById('invite-team-role').value;
+    if(!email) return alert("Please enter an email address.");
+    
+    // Alert placeholder until we build the backend mailroom logic
+    alert(`Invite prepared for ${email} as a ${role}. \n\nThe Firebase mailroom will be wired up in the next step!`);
+    document.getElementById('invite-team-email').value = '';
+}
 
 async function addTeamMember() {
     const nameInput = document.getElementById('new-team-member');
@@ -282,7 +306,7 @@ async function removeTeamMember(index) {
 
 function renderTeamList() {
     const list = document.getElementById('team-list'); list.innerHTML = '';
-    if(teamMembers.length === 0) list.innerHTML = '<li style="color:var(--gray); font-size:14px;">No team members added.</li>';
+    if(teamMembers.length === 0) list.innerHTML = '<li style="color:var(--gray); font-size:14px;">No manual team members added.</li>';
     teamMembers.forEach((member, index) => {
         list.innerHTML += `<li style="display:flex; justify-content:space-between; align-items: center; margin-bottom:10px; padding:10px; background:var(--light-gray); border-radius:6px;">
             <div><strong>${member.name}</strong> <br><span style="font-size:12px; color:var(--gray);">${member.role}</span></div>
@@ -882,30 +906,93 @@ function restoreAppAfterPrint() {
     document.querySelectorAll('.modal').forEach(m => m.style.display = '');
 }
 
-// --- CHANGELOG MODAL ---
-function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
-function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
-const logFilesList = ['v3_0', 'v2_7', 'v2_6', 'v2_5', 'v2_4', 'v2_3', 'v2_2', 'v2_1', 'v2_0', 'v1_16', 'v1_15'];
-let currentLogIndex = 0;
-function openChangelogModal() { document.getElementById('changelog-modal').classList.remove('hidden'); if (currentLogIndex === 0) { document.getElementById('changelog-container').innerHTML = ''; loadMoreLogs(); } }
-function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }
-async function loadMoreLogs() {
-    const container = document.getElementById('changelog-container'); let loadedThisTime = 0;
-    const loadBtn = document.getElementById('load-more-logs-btn'); if(loadBtn) loadBtn.innerText = "Loading...";
-    while (loadedThisTime < 2 && currentLogIndex < logFilesList.length) {
-        const versionName = logFilesList[currentLogIndex];
-        try {
-            const response = await fetch(`log/${versionName}.txt?v=${Date.now()}`); if (!response.ok) throw new Error("File not found");
-            const text = await response.text(); const lines = text.split('\n');
-            let html = `<div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><h3 class="version-title" style="color:var(--primary); margin-bottom:10px;">${lines[0] || versionName}</h3><ul class="changelog-list" style="padding-left: 20px; line-height: 1.6;">`;
-            for(let i = 1; i < lines.length; i++) { if(lines[i].trim() !== '') { html += `<li>${lines[i].replace(/^-/, '').trim()}</li>`; } }
-            html += `</ul></div>`; container.innerHTML += html; loadedThisTime++; 
-        } catch (e) { console.warn(`Missing file: log/${versionName}.txt`); }
-        currentLogIndex++;
-    }
-    if (currentLogIndex >= logFilesList.length) { if(loadBtn) loadBtn.style.display = 'none'; if(container.innerHTML === '') container.innerHTML = '<p style="color:var(--gray); text-align:center;">No updates found.</p>'; } else { if(loadBtn) { loadBtn.style.display = 'inline-block'; loadBtn.innerText = "Show More"; } }
+
+// --- DYNAMIC DATABASE CHANGELOG ---
+let lastChangelogVisible = null; // Helps us load the next batch
+
+async function postNewChangelog() {
+    const version = document.getElementById('admin-changelog-version').value.trim();
+    const text = document.getElementById('admin-changelog-text').value.trim();
+    if (!version || !text) return alert("Please fill out both the Version Title and the Updates box.");
+
+    try {
+        await addDoc(collection(db, "changelogs"), {
+            version: version,
+            details: text,
+            timestamp: Date.now()
+        });
+        alert("Success! Update beamed to all users.");
+        document.getElementById('admin-changelog-version').value = '';
+        document.getElementById('admin-changelog-text').value = '';
+    } catch(e) { alert("Error posting update: " + e.message); }
 }
 
+async function openChangelogModal() { 
+    document.getElementById('changelog-modal').classList.remove('hidden'); 
+    document.getElementById('changelog-container').innerHTML = '<p style="text-align:center; color:var(--gray);">Fetching updates...</p>';
+    lastChangelogVisible = null;
+    await loadMoreChangelogs(true); 
+}
+
+function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }
+
+async function loadMoreChangelogs(isInitialLoad = false) {
+    const container = document.getElementById('changelog-container');
+    const loadBtn = document.getElementById('load-more-logs-btn');
+    if (isInitialLoad) container.innerHTML = '';
+    loadBtn.innerText = "Loading...";
+
+    try {
+        let logQuery;
+        // Always grab the 2 newest records we haven't seen yet
+        if (lastChangelogVisible) {
+            logQuery = query(collection(db, "changelogs"), orderBy("timestamp", "desc"), startAfter(lastChangelogVisible), limit(2));
+        } else {
+            logQuery = query(collection(db, "changelogs"), orderBy("timestamp", "desc"), limit(2));
+        }
+
+        const snapshot = await getDocs(logQuery);
+        
+        if (snapshot.empty) {
+            if (isInitialLoad) container.innerHTML = '<p style="text-align:center; color:var(--gray);">No updates posted yet.</p>';
+            loadBtn.style.display = 'none';
+            return;
+        }
+
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            const dateStr = new Date(data.timestamp).toLocaleDateString();
+            
+            // Format the text so line breaks show up properly
+            let formattedText = '';
+            const lines = data.details.split('\n');
+            lines.forEach(line => { if(line.trim() !== '') formattedText += `<li>${line.trim()}</li>`; });
+
+            container.innerHTML += `
+                <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <h3 style="color:var(--primary); margin-bottom:5px; margin-top:0;">${data.version}</h3>
+                    <p style="font-size:12px; color:var(--gray); margin-top:0; margin-bottom:10px;">Posted: ${dateStr}</p>
+                    <ul style="padding-left: 20px; line-height: 1.6; margin:0;">${formattedText}</ul>
+                </div>
+            `;
+        });
+
+        lastChangelogVisible = snapshot.docs[snapshot.docs.length - 1];
+
+        // Check if there are more left in the database
+        const nextQuery = query(collection(db, "changelogs"), orderBy("timestamp", "desc"), startAfter(lastChangelogVisible), limit(1));
+        const nextSnap = await getDocs(nextQuery);
+        if (nextSnap.empty) { loadBtn.style.display = 'none'; } 
+        else { loadBtn.style.display = 'block'; loadBtn.innerText = "Load More History"; }
+
+    } catch (e) {
+        container.innerHTML = `<p style="color:red;">Error loading logs: ${e.message}</p>`;
+    }
+}
+
+// Miscellaneous modals
+function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
+function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 function printSingleJob() { openPrintModal(); }
 
 // Global scope mapping
@@ -913,7 +1000,7 @@ window.toggleAuthMode = toggleAuthMode; window.handleEmailAuth = handleEmailAuth
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;
 window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.cloneJob = cloneJob; 
 window.shareCurrentJob = shareCurrentJob; window.openChangelogModal = openChangelogModal; window.closeChangelogModal = closeChangelogModal; 
-window.loadMoreLogs = loadMoreLogs; window.openAboutModal = openAboutModal; window.closeAboutModal = closeAboutModal; 
+window.openAboutModal = openAboutModal; window.closeAboutModal = closeAboutModal; 
 window.openAddJobModal = openAddJobModal; window.closeAddJobModal = closeAddJobModal; window.saveNewJob = saveNewJob; 
 window.openEditJobModal = openEditJobModal; window.closeEditJobModal = closeEditJobModal; window.saveEditedJob = saveEditedJob;
 window.openAddTaskModal = openAddTaskModal; window.closeAddTaskModal = closeAddTaskModal; window.addTask = addTask; 
@@ -927,3 +1014,6 @@ window.updateTaskStatus = updateTaskStatus; window.updateTaskNotes = updateTaskN
 window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; 
 window.pushSavedJobToCalendar = pushSavedJobToCalendar; window.pushSavedTaskToCalendar = pushSavedTaskToCalendar;
 window.printSingleJob = printSingleJob; window.printSharedJob = printSharedJob; window.restoreAppAfterPrint = restoreAppAfterPrint; window.renderTasks = renderTasks;
+// New additions
+window.switchTeamTab = switchTeamTab; window.sendTeamInvite = sendTeamInvite; 
+window.postNewChangelog = postNewChangelog; window.loadMoreChangelogs = loadMoreChangelogs;

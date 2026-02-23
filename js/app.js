@@ -14,16 +14,12 @@ const firebaseConfig = {
     measurementId: "G-PV9V64CJZ5"
 };
 
-// Initialize the Cloud connection & Auth
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
-
-// Master Admin Security Key
 const ADMIN_UID = "7cX7BVQxqwMTrsX0NVH5hIruLBW2";
 
-// Data Structure & State
 let currentUserUid = null;
 let currentUserEmail = null;
 let currentUserName = null;
@@ -36,100 +32,33 @@ let viewingArchives = false;
 let sharedJobData = null;
 let currentPendingInvite = null;
 
-// --- SHARED LINK ROUTING ---
-const urlParams = new URLSearchParams(window.location.search);
-const sharedJobId = urlParams.get('job');
-
-if (sharedJobId) {
-    document.getElementById('login-view').classList.add('hidden');
-    loadSharedJob(sharedJobId);
-}
-
-async function loadSharedJob(firebaseDocId) {
-    try {
-        const docRef = doc(db, "jobs", firebaseDocId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().isShared === true) {
-            sharedJobData = docSnap.data(); 
-            document.getElementById('shared-job-view').classList.remove('hidden');
-            document.getElementById('shared-job-title').innerText = sharedJobData.title || "Untitled Job";
-            document.getElementById('shared-job-owner').innerText = "Created by: " + (sharedJobData.owner || "Unknown User");
-            
-            const container = document.getElementById('shared-tasks-container');
-            container.innerHTML = '';
-            
-            if(!sharedJobData.tasks || sharedJobData.tasks.length === 0) {
-                container.innerHTML = '<p style="color:var(--gray);">No tasks found.</p>';
-            } else {
-                sharedJobData.tasks.forEach(task => {
-                    let isComplete = task.status === 'Complete';
-                    let color = isComplete ? 'var(--success)' : (task.status === 'In Progress' ? 'var(--primary)' : 'var(--gray)');
-                    let checkmark = isComplete ? '✅ ' : '';
-                    let titleStyle = isComplete ? 'text-decoration: line-through; color: var(--gray);' : '';
-                    let dateStr = task.dueDate ? `<br><span style="font-size:13px; color:#d9534f;">📅 Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''}</span>` : '';
-                    let asgn = task.assignedTo ? `<br><span style="font-size:13px; color:var(--primary);">👤 ${task.assignedTo}</span>` : '';
-                    let desc = task.desc ? `<p style="font-size:14px; color:var(--gray); margin-top:5px;">${task.desc}</p>` : '';
-                    
-                    container.innerHTML += `
-                        <div style="background:var(--light-gray); padding:15px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border-color);">
-                            <strong style="${titleStyle}">${checkmark}${task.title}</strong> <span style="color:${color}; font-size:12px; font-weight:bold; float:right;">[${task.status}]</span>
-                            ${desc}${asgn}${dateStr}
-                        </div>
-                    `;
-                });
-            }
-        } else {
-            alert("This job link is invalid or is no longer being shared.");
-            window.location.href = window.location.pathname; 
-        }
-    } catch (e) {
-        alert("Error loading shared job. It may be private or deleted.");
-        window.location.href = window.location.pathname;
-    }
-}
-
 // --- THEME LOGIC ---
 function loadThemePreference() {
     const isDark = localStorage.getItem('jobTrackerDarkMode') === 'true';
-    if (isDark) {
-        document.body.classList.add('dark-mode');
-        const toggle = document.getElementById('dark-mode-toggle');
-        if(toggle) toggle.checked = true;
-    }
+    if (isDark) { document.body.classList.add('dark-mode'); const toggle = document.getElementById('dark-mode-toggle'); if(toggle) toggle.checked = true; }
 }
 function toggleDarkMode() {
     const isDark = document.getElementById('dark-mode-toggle').checked;
-    if (isDark) {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('jobTrackerDarkMode', 'true');
-    } else {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('jobTrackerDarkMode', 'false');
-    }
+    if (isDark) { document.body.classList.add('dark-mode'); localStorage.setItem('jobTrackerDarkMode', 'true'); } 
+    else { document.body.classList.remove('dark-mode'); localStorage.setItem('jobTrackerDarkMode', 'false'); }
 }
 loadThemePreference();
 
-// --- LOGIN & SIGNUP COMMANDS ---
+// --- LOGIN COMMANDS ---
 let isSignUpMode = false;
-
 function toggleAuthMode() {
     isSignUpMode = !isSignUpMode;
     const title = document.getElementById('auth-title');
     const submitBtn = document.getElementById('auth-submit-btn');
     const toggleText = document.getElementById('auth-toggle-text');
-    
     if (isSignUpMode) {
-        title.innerText = "Create an Account";
-        submitBtn.innerText = "Sign Up";
+        title.innerText = "Create an Account"; submitBtn.innerText = "Sign Up";
         toggleText.innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Log In</a>`;
     } else {
-        title.innerText = "Access Your Workspace";
-        submitBtn.innerText = "Log In";
+        title.innerText = "Access Your Workspace"; submitBtn.innerText = "Log In";
         toggleText.innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color:var(--primary); text-decoration:none; font-weight:bold;">Sign Up</a>`;
     }
 }
-
 async function handleEmailAuth() {
     const email = document.getElementById('email-input').value.trim();
     const pass = document.getElementById('password-input').value;
@@ -139,172 +68,98 @@ async function handleEmailAuth() {
         else { await signInWithEmailAndPassword(auth, email, pass); }
     } catch(e) { alert("Authentication failed: " + e.message); }
 }
-
-async function loginWithGoogle() {
-    try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); }
-}
+async function loginWithGoogle() { try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Google login failed: " + e.message); } }
 async function logout() { await signOut(auth); }
 
-// --- AUTHENTICATION STATE OBSERVER ---
-if (!sharedJobId) { 
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUserUid = user.uid;
-            currentUserEmail = user.email;
-            currentUserName = user.displayName || user.email.split('@')[0]; 
-            currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
-            
-            try {
-                await setDoc(doc(db, "users", currentUserUid), {
-                    uid: currentUserUid, name: currentUserName, email: currentUserEmail, photoURL: currentUserPhoto, lastLogin: Date.now()
-                }, { merge: true });
-            } catch(e) { console.error("Could not save user profile:", e); }
+// --- AUTH OBSERVER & DATA LOAD ---
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUserUid = user.uid; currentUserEmail = user.email;
+        currentUserName = user.displayName || user.email.split('@')[0]; 
+        currentUserPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
+        
+        try { await setDoc(doc(db, "users", currentUserUid), { uid: currentUserUid, name: currentUserName, email: currentUserEmail, photoURL: currentUserPhoto, lastLogin: Date.now() }, { merge: true }); } catch(e) {}
 
-            document.getElementById('user-profile-pic').src = currentUserPhoto;
-            document.getElementById('user-profile-pic').classList.remove('hidden');
-            document.getElementById('settings-profile-pic').src = currentUserPhoto;
-            document.getElementById('settings-user-name').innerText = currentUserName;
-            document.getElementById('settings-user-email').innerText = currentUserEmail;
+        document.getElementById('user-profile-pic').src = currentUserPhoto; document.getElementById('user-profile-pic').classList.remove('hidden');
+        document.getElementById('settings-profile-pic').src = currentUserPhoto; document.getElementById('settings-user-name').innerText = currentUserName; document.getElementById('settings-user-email').innerText = currentUserEmail;
 
-            if (currentUserUid === ADMIN_UID) document.getElementById('admin-overview-btn').classList.remove('hidden');
-            else document.getElementById('admin-overview-btn').classList.add('hidden');
+        if (currentUserUid === ADMIN_UID) document.getElementById('admin-overview-btn').classList.remove('hidden');
+        else document.getElementById('admin-overview-btn').classList.add('hidden');
 
-            await checkForPendingInvites();
-            await loadData();
-            
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('home-view').classList.remove('hidden');
-            document.getElementById('logout-btn').classList.remove('hidden');
-            document.getElementById('app-footer').classList.remove('hidden');
-            
-            viewingArchives = false; renderJobs();
-        } else {
-            currentUserUid = null; currentUserName = null; currentUserPhoto = null; jobs = []; teamMembers = []; currentPendingInvite = null;
-            
-            document.getElementById('login-view').classList.remove('hidden');
-            document.getElementById('home-view').classList.add('hidden');
-            document.getElementById('job-detail-view').classList.add('hidden');
-            document.getElementById('logout-btn').classList.add('hidden');
-            document.getElementById('user-profile-pic').classList.add('hidden');
-            document.getElementById('app-footer').classList.add('hidden');
-            document.getElementById('admin-overview-btn').classList.add('hidden');
-        }
-    });
-}
+        await checkForPendingInvites(); await loadData();
+        
+        document.getElementById('login-view').classList.add('hidden'); document.getElementById('home-view').classList.remove('hidden');
+        document.getElementById('logout-btn').classList.remove('hidden'); document.getElementById('app-footer').classList.remove('hidden');
+        
+        viewingArchives = false; renderJobs();
+    } else {
+        currentUserUid = null; currentUserName = null; currentUserPhoto = null; jobs = []; teamMembers = []; currentPendingInvite = null;
+        document.getElementById('login-view').classList.remove('hidden'); document.getElementById('home-view').classList.add('hidden');
+        document.getElementById('job-detail-view').classList.add('hidden'); document.getElementById('logout-btn').classList.add('hidden');
+        document.getElementById('user-profile-pic').classList.add('hidden'); document.getElementById('app-footer').classList.add('hidden');
+        document.getElementById('admin-overview-btn').classList.add('hidden');
+    }
+});
 
-// --- SECURE CLOUD LOAD LOGIC ---
 async function loadData() { 
     if (!currentUserUid) return;
     jobs = []; teamMembers = [];
-
     const userDoc = await getDoc(doc(db, "users", currentUserUid));
     let queryUid = currentUserUid; 
-    if (userDoc.exists() && userDoc.data().bossUid) {
-        queryUid = userDoc.data().bossUid; 
-    }
+    if (userDoc.exists() && userDoc.data().bossUid) { queryUid = userDoc.data().bossUid; }
 
     const qJobs = query(collection(db, "jobs"), where("ownerUid", "==", queryUid));
     const querySnapshotJobs = await getDocs(qJobs);
     querySnapshotJobs.forEach((doc) => {
         let data = doc.data(); data.firebaseId = doc.id; 
         if(!data.id) data.id = data.createdAt || Date.now(); 
-        if(!data.tasks) data.tasks = [];
-        if(typeof data.isArchived === 'undefined') data.isArchived = false; 
-        if(typeof data.isShared === 'undefined') data.isShared = false;
+        if(!data.tasks) data.tasks = []; if(typeof data.isArchived === 'undefined') data.isArchived = false; if(typeof data.isShared === 'undefined') data.isShared = false;
         jobs.push(data);
     });
     jobs.sort((a,b) => a.id - b.id); 
 
     const qTeam = query(collection(db, "team"), where("ownerUid", "==", queryUid));
     const querySnapshotTeam = await getDocs(qTeam);
-    querySnapshotTeam.forEach((doc) => {
-        let data = doc.data(); data.firebaseId = doc.id; teamMembers.push(data);
-    });
+    querySnapshotTeam.forEach((doc) => { let data = doc.data(); data.firebaseId = doc.id; teamMembers.push(data); });
 }
 
 async function saveData() { 
     if (!currentUserUid) return;
-    
     const userDoc = await getDoc(doc(db, "users", currentUserUid));
     let saveUid = currentUserUid;
-    let saveName = currentUserName;
-    if (userDoc.exists() && userDoc.data().bossUid) {
-        saveUid = userDoc.data().bossUid; 
-    }
+    if (userDoc.exists() && userDoc.data().bossUid) { saveUid = userDoc.data().bossUid; }
 
-    for (const job of jobs) {
-        const docId = job.firebaseId || job.id.toString();
-        await setDoc(doc(db, "jobs", docId), { ...job, ownerUid: saveUid });
-    }
+    for (const job of jobs) { await setDoc(doc(db, "jobs", job.firebaseId || job.id.toString()), { ...job, ownerUid: saveUid }); }
     if (saveUid === currentUserUid) {
-        for (const member of teamMembers) {
-            const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
-            await setDoc(doc(db, "team", docId), { ...member, owner: currentUserName, ownerUid: currentUserUid });
-        }
+        for (const member of teamMembers) { await setDoc(doc(db, "team", member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '')), { ...member, owner: currentUserName, ownerUid: currentUserUid }); }
     }
 }
 
-// --- Helper Functions ---
 function getAssigneeText(name) {
     if (!name) return '';
     const member = teamMembers.find(m => m.name === name);
-    if (member && member.role) return `${name} (${member.role})`;
-    return name;
+    return (member && member.role) ? `${name} (${member.role})` : name;
 }
-function goHome() {
-    currentJobId = null;
-    document.getElementById('home-view').classList.remove('hidden');
-    document.getElementById('job-detail-view').classList.add('hidden');
-    renderJobs();
-}
-function viewJob(jobId) {
-    currentJobId = jobId;
-    document.getElementById('home-view').classList.add('hidden');
-    document.getElementById('job-detail-view').classList.remove('hidden');
-    populateDropdowns(); renderTasks();
-}
+function goHome() { currentJobId = null; document.getElementById('home-view').classList.remove('hidden'); document.getElementById('job-detail-view').classList.add('hidden'); renderJobs(); }
+function viewJob(jobId) { currentJobId = jobId; document.getElementById('home-view').classList.add('hidden'); document.getElementById('job-detail-view').classList.remove('hidden'); populateDropdowns(); renderTasks(); }
 
-// --- Team Management & Invites (BULLETPROOF PWA MAILROOM) ---
+// --- TEAM & INVITE LOGIC ---
 function openTeamModal() { renderTeamList(); document.getElementById('team-modal').classList.remove('hidden'); }
 function closeTeamModal() { document.getElementById('team-modal').classList.add('hidden'); }
 function switchTeamTab(tab) {
-    if(tab === 'manual') {
-        document.getElementById('team-tab-manual').classList.remove('hidden');
-        document.getElementById('team-tab-invite').classList.add('hidden');
-        document.getElementById('tab-btn-manual').className = 'btn btn-primary';
-        document.getElementById('tab-btn-invite').className = 'btn btn-outline';
-    } else {
-        document.getElementById('team-tab-manual').classList.add('hidden');
-        document.getElementById('team-tab-invite').classList.remove('hidden');
-        document.getElementById('tab-btn-manual').className = 'btn btn-outline';
-        document.getElementById('tab-btn-invite').className = 'btn btn-primary';
-    }
+    if(tab === 'manual') { document.getElementById('team-tab-manual').classList.remove('hidden'); document.getElementById('team-tab-invite').classList.add('hidden'); document.getElementById('tab-btn-manual').className = 'btn btn-primary'; document.getElementById('tab-btn-invite').className = 'btn btn-outline'; } 
+    else { document.getElementById('team-tab-manual').classList.add('hidden'); document.getElementById('team-tab-invite').classList.remove('hidden'); document.getElementById('tab-btn-manual').className = 'btn btn-outline'; document.getElementById('tab-btn-invite').className = 'btn btn-primary'; }
 }
 
 async function sendTeamInvite() {
-    const email = document.getElementById('invite-team-email').value.trim().toLowerCase();
-    const role = document.getElementById('invite-team-role').value;
+    const email = document.getElementById('invite-team-email').value.trim().toLowerCase(); const role = document.getElementById('invite-team-role').value;
     if(!email) return alert("Please enter an email address.");
-    
     try {
-        await addDoc(collection(db, "invites"), {
-            fromUid: currentUserUid, fromName: currentUserName,
-            toEmail: email, role: role, status: 'pending', createdAt: Date.now()
-        });
-
+        await addDoc(collection(db, "invites"), { fromUid: currentUserUid, fromName: currentUserName, toEmail: email, role: role, status: 'pending', createdAt: Date.now() });
         const subject = encodeURIComponent("You're invited to join my crew on TaskGrid");
         const body = encodeURIComponent(`Hey!\n\nI am using TaskGrid to manage our jobs. I've officially invited you to join the crew as a ${role}.\n\nGo to:\n${window.location.origin}${window.location.pathname}\n\nMake sure you log in with this exact email address (${email}) to automatically accept the invite and see your tasks.\n\nSee you on the site,\n${currentUserName}`);
-        
-        // Bulletproof Mailto trigger for PWA mobile apps
-        const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
-        const a = document.createElement('a');
-        a.href = mailtoLink;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        document.getElementById('invite-team-email').value = '';
-        closeTeamModal();
+        const a = document.createElement('a'); a.href = `mailto:${email}?subject=${subject}&body=${body}`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        document.getElementById('invite-team-email').value = ''; closeTeamModal();
     } catch (e) { alert("Failed to send invite: " + e.message); }
 }
 
@@ -314,9 +169,7 @@ async function checkForPendingInvites() {
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
             currentPendingInvite = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-            document.getElementById('invite-sender-name').innerText = currentPendingInvite.fromName;
-            document.getElementById('invite-role-name').innerText = currentPendingInvite.role;
-            document.getElementById('pending-invite-modal').classList.remove('hidden');
+            document.getElementById('invite-sender-name').innerText = currentPendingInvite.fromName; document.getElementById('invite-role-name').innerText = currentPendingInvite.role; document.getElementById('pending-invite-modal').classList.remove('hidden');
         }
     } catch(e) { console.error("Invite check failed:", e); }
 }
@@ -325,67 +178,21 @@ async function acceptTeamInvite() {
     if(!currentPendingInvite) return;
     try {
         await updateDoc(doc(db, "invites", currentPendingInvite.id), { status: 'accepted' });
-        
         const teamDocId = currentUserName.replace(/[^a-zA-Z0-9]/g, '') + "_" + currentPendingInvite.fromUid;
-        await setDoc(doc(db, "team", teamDocId), {
-            name: currentUserName, email: currentUserEmail, uid: currentUserUid,
-            role: currentPendingInvite.role, ownerUid: currentPendingInvite.fromUid, owner: currentPendingInvite.fromName
-        });
-
+        await setDoc(doc(db, "team", teamDocId), { name: currentUserName, email: currentUserEmail, uid: currentUserUid, role: currentPendingInvite.role, ownerUid: currentPendingInvite.fromUid, owner: currentPendingInvite.fromName });
         await setDoc(doc(db, "users", currentUserUid), { bossUid: currentPendingInvite.fromUid }, { merge: true });
-
-        alert("Invite accepted! You are now connected to the crew.");
-        document.getElementById('pending-invite-modal').classList.add('hidden');
+        alert("Invite accepted! You are now connected to the crew."); document.getElementById('pending-invite-modal').classList.add('hidden');
         await loadData(); renderJobs();
     } catch(e) { alert("Error: " + e.message); }
 }
 
-async function declineTeamInvite() {
-    if(!currentPendingInvite) return;
-    try {
-        await updateDoc(doc(db, "invites", currentPendingInvite.id), { status: 'declined' });
-        document.getElementById('pending-invite-modal').classList.add('hidden');
-    } catch(e) { console.error(e); }
-}
-
-async function addTeamMember() {
-    const nameInput = document.getElementById('new-team-member');
-    const roleInput = document.getElementById('new-team-role');
-    const name = nameInput.value.trim();
-    const role = roleInput.value.trim() || 'Team Member';
-    
-    if(name) {
-        const exists = teamMembers.find(m => m.name.toLowerCase() === name.toLowerCase());
-        if(!exists) { teamMembers.push({name: name, role: role}); renderTeamList(); await saveData(); }
-        nameInput.value = ''; roleInput.value = '';
-    }
-}
-async function removeTeamMember(index) { 
-    const member = teamMembers[index];
-    const docId = member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, '');
-    await deleteDoc(doc(db, "team", docId)); 
-    teamMembers.splice(index, 1); renderTeamList(); 
-}
-function renderTeamList() {
-    const list = document.getElementById('team-list'); list.innerHTML = '';
-    if(teamMembers.length === 0) list.innerHTML = '<li style="color:var(--gray); font-size:14px;">No manual team members added.</li>';
-    teamMembers.forEach((member, index) => {
-        list.innerHTML += `<li style="display:flex; justify-content:space-between; align-items: center; margin-bottom:10px; padding:10px; background:var(--light-gray); border-radius:6px;">
-            <div><strong>${member.name}</strong> <br><span style="font-size:12px; color:var(--gray);">${member.role}</span></div>
-            <button class="btn-icon" onclick="removeTeamMember(${index})" style="color:red; font-weight:bold;">X</button>
-        </li>`;
-    });
-}
-function populateDropdowns() {
-    let optionsHTML = '<option value="">Unassigned</option>';
-    teamMembers.forEach(member => { optionsHTML += `<option value="${member.name}">${member.name} (${member.role})</option>`; });
-    ['add-job-assignee', 'new-task-assignee', 'edit-job-assignee', 'edit-task-assignee'].forEach(id => {
-        const el = document.getElementById(id); if(el) el.innerHTML = optionsHTML;
-    });
-}
+async function declineTeamInvite() { if(!currentPendingInvite) return; try { await updateDoc(doc(db, "invites", currentPendingInvite.id), { status: 'declined' }); document.getElementById('pending-invite-modal').classList.add('hidden'); } catch(e) { console.error(e); } }
+async function addTeamMember() { const name = document.getElementById('new-team-member').value.trim(); const role = document.getElementById('new-team-role').value.trim() || 'Team Member'; if(name) { const exists = teamMembers.find(m => m.name.toLowerCase() === name.toLowerCase()); if(!exists) { teamMembers.push({name: name, role: role}); renderTeamList(); await saveData(); } document.getElementById('new-team-member').value = ''; document.getElementById('new-team-role').value = ''; } }
+async function removeTeamMember(index) { const member = teamMembers[index]; await deleteDoc(doc(db, "team", member.firebaseId || member.name.replace(/[^a-zA-Z0-9]/g, ''))); teamMembers.splice(index, 1); renderTeamList(); }
+function renderTeamList() { const list = document.getElementById('team-list'); list.innerHTML = ''; if(teamMembers.length === 0) list.innerHTML = '<li style="color:var(--gray); font-size:14px;">No manual team members added.</li>'; teamMembers.forEach((member, index) => { list.innerHTML += `<li style="display:flex; justify-content:space-between; align-items: center; margin-bottom:10px; padding:10px; background:var(--light-gray); border-radius:6px;"><div><strong>${member.name}</strong> <br><span style="font-size:12px; color:var(--gray);">${member.role}</span></div><button class="btn-icon" onclick="removeTeamMember(${index})" style="color:red; font-weight:bold;">X</button></li>`; }); }
+function populateDropdowns() { let optionsHTML = '<option value="">Unassigned</option>'; teamMembers.forEach(member => { optionsHTML += `<option value="${member.name}">${member.name} (${member.role})</option>`; }); ['add-job-assignee', 'new-task-assignee', 'edit-job-assignee', 'edit-task-assignee'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = optionsHTML; }); }
 // --- Jobs Logic & Drag-and-Drop ---
 let jobSortable = null;
-
 function toggleArchives() {
     viewingArchives = !viewingArchives;
     const btn = document.getElementById('toggle-archive-btn');
@@ -411,8 +218,8 @@ function renderJobs() {
         const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
         
         let barColor = 'var(--danger)';
-        if (percent === 100) { barColor = 'var(--success)'; }
-        else if (percent >= 50) { barColor = 'var(--warning)'; }
+        if (percent === 100) barColor = 'var(--success)';
+        else if (percent >= 50) barColor = 'var(--warning)';
         if (total === 0) barColor = 'var(--gray)';
 
         let badges = '';
@@ -422,8 +229,7 @@ function renderJobs() {
         if(job.startDate) badges += `<span class="badge" style="background:var(--light-gray); color:var(--text); border:1px solid var(--border-color);">📅 ${job.startDate}</span>`;
 
         const card = document.createElement('div');
-        card.className = 'card'; 
-        card.dataset.id = job.id;
+        card.className = 'card'; card.dataset.id = job.id;
         card.onclick = () => viewJob(job.id);
         card.style.opacity = job.isArchived ? '0.7' : '1';
         card.style.cursor = 'pointer';
@@ -434,7 +240,7 @@ function renderJobs() {
                 <span class="drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">☰</span>
             </div>
             ${badges ? `<div style="margin-bottom:10px; padding-right: 70px; display:flex; flex-wrap:wrap; gap:5px;">${badges}</div>` : ''}
-            <h3 style="padding-right: 70px; margin: 0 0 5px 0;">${job.title || 'Untitled Job'} ${job.isArchived ? '(Archived)' : ''}</h3>
+            <h3 style="padding-right: 70px; margin: 0 0 5px 0; color: var(--text);">${job.title || 'Untitled Job'} ${job.isArchived ? '(Archived)' : ''}</h3>
             <p style="color: var(--gray); font-size: 14px; margin: 0 0 10px 0;">${total > 0 ? `${completed}/${total} Tasks Done (${percent}%)` : 'No tasks'}</p>
             <div class="progress-container"><div class="progress-fill" style="width: ${percent}%; background-color: ${barColor};"></div></div>
         `;
@@ -479,9 +285,8 @@ function renderTasks() {
     document.getElementById('current-job-badges').innerHTML = topBadges;
 
     if (!job.tasks) job.tasks = [];
-
     let displayTasks = job.tasks;
-    if (hideCompleted) { displayTasks = displayTasks.filter(t => t.status !== 'Complete'); }
+    if (hideCompleted) displayTasks = displayTasks.filter(t => t.status !== 'Complete');
 
     if(displayTasks.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:20px; padding:20px;">No tasks visible.</p>`;
@@ -490,8 +295,7 @@ function renderTasks() {
 
     displayTasks.forEach((task) => {
         let isComplete = task.status === 'Complete';
-        let dateDisplay = '';
-        let syncBtnDisplay = '';
+        let dateDisplay = ''; let syncBtnDisplay = '';
         
         if (task.dueDate) {
             const [year, month, day] = task.dueDate.split('-');
@@ -499,9 +303,7 @@ function renderTasks() {
             const today = new Date(); today.setHours(0,0,0,0);
             const isPastDue = taskDate < today && !isComplete;
             
-            dateDisplay = `<div style="margin-top: 8px; font-size: 13px; color: ${isPastDue ? 'var(--danger)' : 'var(--gray)'}; font-weight: ${isPastDue ? 'bold' : 'normal'};">
-                📅 Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''} ${isPastDue ? '(Past Due!)' : ''}
-            </div>`;
+            dateDisplay = `<div style="margin-top: 8px; font-size: 13px; color: ${isPastDue ? 'var(--danger)' : 'var(--gray)'}; font-weight: ${isPastDue ? 'bold' : 'normal'};">📅 Due: ${task.dueDate} ${task.dueTime ? 'at ' + task.dueTime : ''} ${isPastDue ? '(Past Due!)' : ''}</div>`;
             syncBtnDisplay = `<button class="btn-small" style="background:transparent; border:1px solid var(--border-color); color:var(--gray); margin-top:8px;" onclick="pushSavedTaskToCalendar(${task.id})">📅 Sync</button>`;
         }
 
@@ -521,7 +323,7 @@ function renderTasks() {
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div style="font-size: 18px; line-height:1.4; padding-right: 90px; flex: 1;">
                     ${badgeDisplay}<br>
-                    <span class="${titleClass}" style="font-weight: 600;">${checkmark}${task.title}</span>
+                    <span class="${titleClass}" style="font-weight: 600; color: var(--text);">${checkmark}${task.title}</span>
                 </div>
                 <div style="display:flex; gap:2px; position:absolute; top:12px; right:12px; align-items:center;">
                     <button class="btn-icon" onclick="event.stopPropagation(); openEditTaskModal(${task.id})" title="Edit Task">✏️</button>
@@ -533,14 +335,14 @@ function renderTasks() {
             ${dateDisplay}
             
             <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                <select style="margin: 0; padding: 8px; font-size: 14px; flex: 1;" onchange="updateTaskStatus(${task.id}, this.value)">
+                <select style="margin: 0; padding: 8px; font-size: 14px; flex: 1; background: var(--bg-color); color: var(--text);" onchange="updateTaskStatus(${task.id}, this.value)">
                     <option value="Not Started" ${task.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
                     <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                     <option value="Complete" ${task.status === 'Complete' ? 'selected' : ''}>✅ Complete</option>
                 </select>
                 ${syncBtnDisplay}
             </div>
-            <textarea placeholder="Ongoing notes..." onchange="updateTaskNotes(${task.id}, this.value)" rows="1" style="margin-top: 10px; padding: 8px; font-size: 14px; font-style: italic;">${task.notes || ''}</textarea>
+            <textarea placeholder="Ongoing notes..." onchange="updateTaskNotes(${task.id}, this.value)" rows="1" style="margin-top: 10px; padding: 8px; font-size: 14px; font-style: italic; background: var(--bg-color); color: var(--text);">${task.notes || ''}</textarea>
         `;
         container.appendChild(taskEl);
     });
@@ -561,137 +363,87 @@ function renderTasks() {
     });
 }
 
-// --- Add & Edit Task Logic ---
+// --- Add & Edit Task/Job Logic ---
 function openAddJobModal() {
     populateDropdowns();
-    document.getElementById('add-job-title').value = '';
-    document.getElementById('add-job-priority').value = 'Normal';
-    document.getElementById('add-job-date').value = '';
-    document.getElementById('add-job-time').value = '';
+    document.getElementById('add-job-title').value = ''; document.getElementById('add-job-priority').value = 'Normal';
+    document.getElementById('add-job-date').value = ''; document.getElementById('add-job-time').value = '';
     document.getElementById('add-job-modal').classList.remove('hidden');
 }
-
 function closeAddJobModal() { document.getElementById('add-job-modal').classList.add('hidden'); }
 
 async function saveNewJob() {
     const title = document.getElementById('add-job-title').value.trim();
-    if (!title) { alert("Please enter a job title."); return; }
-
-    jobs.push({ 
-        id: Date.now(), title: title, 
-        priority: document.getElementById('add-job-priority').value, 
-        assignedTo: document.getElementById('add-job-assignee').value, 
-        startDate: document.getElementById('add-job-date').value, 
-        startTime: document.getElementById('add-job-time').value, 
-        tasks: [], isArchived: false, isShared: false 
-    });
-    
+    if (!title) return alert("Please enter a job title.");
+    jobs.push({ id: Date.now(), title: title, priority: document.getElementById('add-job-priority').value, assignedTo: document.getElementById('add-job-assignee').value, startDate: document.getElementById('add-job-date').value, startTime: document.getElementById('add-job-time').value, tasks: [], isArchived: false, isShared: false });
     if(viewingArchives) { viewingArchives = false; document.getElementById('toggle-archive-btn').innerText = "Show Archives"; document.getElementById('toggle-archive-btn').style.background = "var(--light-gray)"; document.getElementById('toggle-archive-btn').style.color = "var(--text)"; }
-    
     closeAddJobModal(); renderJobs(); await saveData(); 
 }
 
 function openEditJobModal() {
-    populateDropdowns();
-    const job = jobs.find(j => j.id === currentJobId);
-    document.getElementById('edit-job-title').value = job.title;
-    document.getElementById('edit-job-priority').value = job.priority || 'Normal';
-    document.getElementById('edit-job-assignee').value = job.assignedTo || '';
-    document.getElementById('edit-job-date').value = job.startDate || '';
-    document.getElementById('edit-job-time').value = job.startTime || '';
-    document.getElementById('edit-job-modal').classList.remove('hidden');
+    populateDropdowns(); const job = jobs.find(j => j.id === currentJobId);
+    document.getElementById('edit-job-title').value = job.title; document.getElementById('edit-job-priority').value = job.priority || 'Normal';
+    document.getElementById('edit-job-assignee').value = job.assignedTo || ''; document.getElementById('edit-job-date').value = job.startDate || '';
+    document.getElementById('edit-job-time').value = job.startTime || ''; document.getElementById('edit-job-modal').classList.remove('hidden');
 }
 function closeEditJobModal() { document.getElementById('edit-job-modal').classList.add('hidden'); }
 
 async function saveEditedJob() {
     const title = document.getElementById('edit-job-title').value.trim();
     if (!title) return alert("Title cannot be empty.");
-    
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    jobs[jobIndex].title = title;
-    jobs[jobIndex].priority = document.getElementById('edit-job-priority').value;
-    jobs[jobIndex].assignedTo = document.getElementById('edit-job-assignee').value;
-    jobs[jobIndex].startDate = document.getElementById('edit-job-date').value;
+    jobs[jobIndex].title = title; jobs[jobIndex].priority = document.getElementById('edit-job-priority').value;
+    jobs[jobIndex].assignedTo = document.getElementById('edit-job-assignee').value; jobs[jobIndex].startDate = document.getElementById('edit-job-date').value;
     jobs[jobIndex].startTime = document.getElementById('edit-job-time').value;
-    
     closeEditJobModal(); renderTasks(); await saveData();
 }
 
 function openAddTaskModal() {
-    populateDropdowns();
-    document.getElementById('new-task-title').value = '';
-    document.getElementById('new-task-desc').value = '';
-    document.getElementById('new-task-priority').value = 'Normal';
-    document.getElementById('new-task-assignee').value = '';
-    document.getElementById('new-task-date').value = '';
-    document.getElementById('new-task-time').value = '';
+    populateDropdowns(); document.getElementById('new-task-title').value = ''; document.getElementById('new-task-desc').value = '';
+    document.getElementById('new-task-priority').value = 'Normal'; document.getElementById('new-task-assignee').value = '';
+    document.getElementById('new-task-date').value = ''; document.getElementById('new-task-time').value = '';
     document.getElementById('add-task-modal').classList.remove('hidden');
 }
-
 function closeAddTaskModal() { document.getElementById('add-task-modal').classList.add('hidden'); }
 
 async function addTask() {
     const title = document.getElementById('new-task-title').value.trim();
     if (!title) return alert("Enter a task name.");
-    
     const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    jobs[jobIndex].tasks.push({ 
-        id: Date.now(), title: title, 
-        desc: document.getElementById('new-task-desc').value.trim(), 
-        priority: document.getElementById('new-task-priority').value, 
-        assignedTo: document.getElementById('new-task-assignee').value, 
-        status: 'Not Started', notes: '', 
-        dueDate: document.getElementById('new-task-date').value, 
-        dueTime: document.getElementById('new-task-time').value
-    });
-
+    jobs[jobIndex].tasks.push({ id: Date.now(), title: title, desc: document.getElementById('new-task-desc').value.trim(), priority: document.getElementById('new-task-priority').value, assignedTo: document.getElementById('new-task-assignee').value, status: 'Not Started', notes: '', dueDate: document.getElementById('new-task-date').value, dueTime: document.getElementById('new-task-time').value });
     closeAddTaskModal(); renderTasks(); await saveData(); 
 }
 
 let editingTaskId = null;
 function openEditTaskModal(taskId) {
     editingTaskId = taskId; populateDropdowns();
-    const job = jobs.find(j => j.id === currentJobId);
-    const task = job.tasks.find(t => t.id === taskId);
-    document.getElementById('edit-task-title').value = task.title;
-    document.getElementById('edit-task-desc').value = task.desc || '';
-    document.getElementById('edit-task-priority').value = task.priority || 'Normal';
-    document.getElementById('edit-task-assignee').value = task.assignedTo || '';
-    document.getElementById('edit-task-date').value = task.dueDate || '';
-    document.getElementById('edit-task-time').value = task.dueTime || '';
+    const job = jobs.find(j => j.id === currentJobId); const task = job.tasks.find(t => t.id === taskId);
+    document.getElementById('edit-task-title').value = task.title; document.getElementById('edit-task-desc').value = task.desc || '';
+    document.getElementById('edit-task-priority').value = task.priority || 'Normal'; document.getElementById('edit-task-assignee').value = task.assignedTo || '';
+    document.getElementById('edit-task-date').value = task.dueDate || ''; document.getElementById('edit-task-time').value = task.dueTime || '';
     document.getElementById('edit-task-modal').classList.remove('hidden');
 }
-
 function closeEditTaskModal() { document.getElementById('edit-task-modal').classList.add('hidden'); editingTaskId = null; }
 
 async function saveEditedTask() {
     const title = document.getElementById('edit-task-title').value.trim();
     if (!title) return alert("Task name cannot be empty.");
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === editingTaskId);
-    jobs[jobIndex].tasks[taskIndex].title = title;
-    jobs[jobIndex].tasks[taskIndex].desc = document.getElementById('edit-task-desc').value.trim();
-    jobs[jobIndex].tasks[taskIndex].priority = document.getElementById('edit-task-priority').value;
-    jobs[jobIndex].tasks[taskIndex].assignedTo = document.getElementById('edit-task-assignee').value;
-    jobs[jobIndex].tasks[taskIndex].dueDate = document.getElementById('edit-task-date').value;
-    jobs[jobIndex].tasks[taskIndex].dueTime = document.getElementById('edit-task-time').value;
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId); const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === editingTaskId);
+    jobs[jobIndex].tasks[taskIndex].title = title; jobs[jobIndex].tasks[taskIndex].desc = document.getElementById('edit-task-desc').value.trim();
+    jobs[jobIndex].tasks[taskIndex].priority = document.getElementById('edit-task-priority').value; jobs[jobIndex].tasks[taskIndex].assignedTo = document.getElementById('edit-task-assignee').value;
+    jobs[jobIndex].tasks[taskIndex].dueDate = document.getElementById('edit-task-date').value; jobs[jobIndex].tasks[taskIndex].dueTime = document.getElementById('edit-task-time').value;
     closeEditTaskModal(); renderTasks(); await saveData();
 }
 
 async function updateTaskStatus(taskId, newStatus) {
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId); const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     jobs[jobIndex].tasks[taskIndex].status = newStatus;
-    if (newStatus === 'Complete') {
-        const completedTask = jobs[jobIndex].tasks.splice(taskIndex, 1)[0];
-        jobs[jobIndex].tasks.push(completedTask);
-    }
+    if (newStatus === 'Complete') { const completedTask = jobs[jobIndex].tasks.splice(taskIndex, 1)[0]; jobs[jobIndex].tasks.push(completedTask); }
     renderTasks(); await saveData(); 
 }
 
 async function updateTaskNotes(taskId, notes) {
-    const jobIndex = jobs.findIndex(j => j.id === currentJobId);
-    const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
+    const jobIndex = jobs.findIndex(j => j.id === currentJobId); const taskIndex = jobs[jobIndex].tasks.findIndex(t => t.id === taskId);
     jobs[jobIndex].tasks[taskIndex].notes = notes; await saveData();
 }
 
@@ -702,7 +454,6 @@ async function deleteTask(taskId) {
         renderTasks(); await saveData();
     }
 }
-
 // --- CALENDAR LOGIC (UNIVERSAL) ---
 function createCalendarLink(title, startDate, startTime, description) {
     if (!startDate) return alert("Please select a Date first so we know when to add it to the Calendar!");
@@ -1041,7 +792,7 @@ function openAboutModal() { document.getElementById('about-modal').classList.rem
 function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
 function printSingleJob() { openPrintModal(); }
 
-// Global scope mapping
+// Global scope mapping (VITAL for HTML onClick buttons)
 window.toggleAuthMode = toggleAuthMode; window.handleEmailAuth = handleEmailAuth; window.loginWithGoogle = loginWithGoogle; window.logout = logout;
 window.openSettingsModal = openSettingsModal; window.closeSettingsModal = closeSettingsModal; window.toggleDarkMode = toggleDarkMode;
 window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.cloneJob = cloneJob; 

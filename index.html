@@ -42,7 +42,10 @@
                 </div>
 
                 <div style="max-width: 800px; text-align: center; margin-bottom: 40px;">
-                    <h1 style="font-size: 2.2em; color: var(--text); margin-bottom: 10px;">Field Operations, Mastered.</h1>
+                    <h1 style="font-size: 2.2em; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        TaskGrid
+                    </h1>
                     <p style="font-size: 1.1em; color: var(--gray); margin-bottom: 25px; line-height: 1.5;">The ultimate task management platform built for crews, contractors, and individuals who need to get things done on the site and in the office.</p>
                     
                     <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 30px;">
@@ -72,9 +75,7 @@
                     <h2 style="margin: 0; color: var(--text);">Active Jobs</h2>
                     <button id="toggle-archive-btn" class="btn-small" style="background: var(--light-gray); color: var(--text);" onclick="toggleArchives()">Show Archives</button>
                 </div>
-                
                 <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px; font-size: 16px; padding: 12px;" onclick="openAddJobModal()">+ Create New Job</button>
-                
                 <div id="jobs-container"></div>
             </div>
 
@@ -98,14 +99,13 @@
                         <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Done
                     </label>
                 </div>
-                
                 <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px; font-size: 16px; padding: 12px;" onclick="openAddTaskModal()">+ Add New Task</button>
-
                 <div id="tasks-container"></div>
             </div>
 
             <div id="shared-job-view" class="hidden">
                 <div style="background: var(--primary); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                     <h2 id="shared-job-title" style="margin: 0 0 10px 0;">Loading Job...</h2>
                     <p id="shared-job-owner" style="margin: 0; opacity: 0.9;">Created by: ...</p>
                     <button class="btn" style="background: white; color: var(--primary); margin-top: 15px; font-weight: bold;" onclick="printSharedJob()">🖨️ Print Checklist</button>
@@ -116,7 +116,6 @@
                     <button class="btn btn-outline" style="color: var(--text); border-color: var(--border-color);" onclick="window.location.href=window.location.pathname">Create Your Own Account</button>
                 </div>
             </div>
-
         </main>
         <footer id="app-footer" class="hidden" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #1a1a1a; padding: 10px; display: flex; justify-content: space-around; border-top: 1px solid #333; z-index: 1000;">
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="goHome()"><span>🏠</span>Home</button>
@@ -124,7 +123,18 @@
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openPrintModal()"><span>🖨️</span>Print</button>
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openSettingsModal()"><span>⚙️</span>Settings</button>
         </footer>
-    </div> <div id="settings-modal" class="modal hidden">
+    </div> <div id="pending-invite-modal" class="modal hidden">
+        <div class="modal-content" style="text-align: center;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <h2 style="margin-top: 0; color: var(--text);">You've Been Invited!</h2>
+            <p style="color: var(--text); margin-bottom: 5px;"><strong><span id="invite-sender-name">Someone</span></strong> has invited you to join their crew on TaskGrid.</p>
+            <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">Role: <span id="invite-role-name" style="font-weight:bold; color:var(--primary);">Worker</span></p>
+            <button class="btn btn-success" style="width: 100%; margin-bottom: 10px; font-size: 16px; padding: 12px;" onclick="acceptTeamInvite()">Accept Invitation</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--danger); border-color: var(--danger);" onclick="declineTeamInvite()">Decline</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
             <h2 style="margin-top: 0; color: var(--text);">Settings</h2>
             <div style="text-align: center; margin-bottom: 20px;">
@@ -168,7 +178,7 @@
                     <option value="Foreman">Foreman (Can Add/Edit tasks)</option>
                 </select>
                 <button class="btn btn-success" style="width:100%; margin-top:10px;" onclick="sendTeamInvite()">✉️ Send App Invite</button>
-                <p style="font-size:12px; color:var(--gray); margin-top:10px; text-align:center;">They will see this invite when they log in.</p>
+                <p style="font-size:12px; color:var(--gray); margin-top:10px; text-align:center;">This will open your email app to send a secure invite link.</p>
             </div>
             <ul id="team-list" style="margin-top: 20px; list-style: none; padding: 0;"></ul>
             <button class="btn btn-outline" style="width: 100%; margin-top: 15px; color: var(--text); border-color: var(--border-color);" onclick="closeTeamModal()">Close</button>
@@ -201,8 +211,9 @@
 
     <div id="about-modal" class="modal hidden">
         <div class="modal-content" style="text-align: center;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <h2 style="margin-top: 0; color: var(--text);">About TaskGrid</h2>
-            <p style="color: var(--text);"><strong>Version:</strong> 4.0 (Enterprise Base)</p>
+            <p style="color: var(--text);"><strong>Version:</strong> 4.1 (Enterprise Base)</p>
             <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px; line-height: 1.6;">TaskGrid was built from the ground up for field operators, crews, and teams who need a reliable, lightning-fast way to organize jobs, sync across devices, and print professional checklists.</p>
             <button class="btn btn-primary" style="width: 100%;" onclick="closeAboutModal()">Close</button>
         </div>

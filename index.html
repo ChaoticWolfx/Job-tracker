@@ -13,7 +13,7 @@
 
     <div id="main-app-wrapper">
         
-        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--header-bg); color: white;">
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #1a1a1a; color: white;">
             <h1 id="header-title" style="margin: 0; font-size: 20px;">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 TaskGrid
@@ -26,50 +26,50 @@
 
         <main style="padding: 15px; padding-bottom: 80px;">
             
-            <div id="login-view" style="display: flex; flex-direction: column; align-items: center; padding-top: 10px;">
+            <div id="login-view" style="display: flex; flex-direction: column; align-items: center; padding-top: 20px;">
                 
+                <div style="max-width: 400px; width: 100%; text-align: center; background: var(--light-gray); padding: 30px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h2 id="auth-title" style="margin-top: 0; color: var(--text);">Access Your Workspace</h2>
+                    <input type="email" id="email-input" placeholder="Email Address" style="margin-bottom: 10px;">
+                    <input type="password" id="password-input" placeholder="Password" style="margin-bottom: 15px;">
+                    <button id="auth-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="handleEmailAuth()">Log In</button>
+                    <p id="auth-toggle-text" style="font-size: 14px; margin-bottom: 20px; color: var(--text);">Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary); font-weight: bold;">Sign Up</a></p>
+                    <hr style="border-color: var(--border-color); margin-bottom: 20px;">
+                    <button class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text); border-color: var(--border-color);" onclick="loginWithGoogle()">
+                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Continue with Google
+                    </button>
+                </div>
+
                 <div style="max-width: 800px; text-align: center; margin-bottom: 40px;">
-                    <h1 style="font-size: 2.5em; color: var(--primary); margin-bottom: 10px;">Field Operations, Mastered.</h1>
+                    <h1 style="font-size: 2.2em; color: var(--text); margin-bottom: 10px;">Field Operations, Mastered.</h1>
                     <p style="font-size: 1.1em; color: var(--gray); margin-bottom: 25px; line-height: 1.5;">The ultimate task management platform built for crews, contractors, and individuals who need to get things done on the site and in the office.</p>
                     
                     <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 30px;">
                         <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
-                            <h3 style="margin-top: 0; margin-bottom: 5px;">👷 Team Invites</h3>
+                            <h3 style="margin-top: 0; margin-bottom: 5px; color: var(--text);">👷 Team Invites</h3>
                             <p style="font-size: 14px; color: var(--gray); margin: 0;">Assign tasks directly to specific crew members with laser-focused permissions.</p>
                         </div>
                         <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
-                            <h3 style="margin-top: 0; margin-bottom: 5px;">🖨️ Smart Printing</h3>
+                            <h3 style="margin-top: 0; margin-bottom: 5px; color: var(--text);">🖨️ Smart Printing</h3>
                             <p style="font-size: 14px; color: var(--gray); margin: 0;">Generate perfectly formatted, professional physical checklists instantly.</p>
                         </div>
                         <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: left; border: 1px solid var(--border-color);">
-                            <h3 style="margin-top: 0; margin-bottom: 5px;">☁️ Universal Sync</h3>
+                            <h3 style="margin-top: 0; margin-bottom: 5px; color: var(--text);">☁️ Universal Sync</h3>
                             <p style="font-size: 14px; color: var(--gray); margin: 0;">Access your jobs and real-time updates from any phone, tablet, or computer.</p>
                         </div>
                     </div>
                     
                     <div style="display: flex; justify-content: center; gap: 15px;">
-                        <button class="btn btn-outline" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
-                        <button class="btn btn-outline" onclick="openChangelogModal()">📢 View Changelog</button>
+                        <button class="btn btn-outline" style="color: var(--text); border-color: var(--border-color);" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
+                        <button class="btn btn-outline" style="color: var(--text); border-color: var(--border-color);" onclick="openChangelogModal()">📢 View Changelog</button>
                     </div>
-                </div>
-
-                <div style="max-width: 400px; width: 100%; text-align: center; background: var(--light-gray); padding: 30px; border-radius: 10px; border: 1px solid var(--border-color);">
-                    <h2 id="auth-title" style="margin-top: 0;">Access Your Workspace</h2>
-                    <input type="email" id="email-input" placeholder="Email Address" style="margin-bottom: 10px;">
-                    <input type="password" id="password-input" placeholder="Password" style="margin-bottom: 15px;">
-                    <button id="auth-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="handleEmailAuth()">Log In</button>
-                    <p id="auth-toggle-text" style="font-size: 14px; margin-bottom: 20px;">Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary); font-weight: bold;">Sign Up</a></p>
-                    <hr style="border-color: var(--border-color); margin-bottom: 20px;">
-                    <button class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="loginWithGoogle()">
-                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                        Continue with Google
-                    </button>
                 </div>
             </div>
 
             <div id="home-view" class="hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h2 style="margin: 0;">Active Jobs</h2>
+                    <h2 style="margin: 0; color: var(--text);">Active Jobs</h2>
                     <button id="toggle-archive-btn" class="btn-small" style="background: var(--light-gray); color: var(--text);" onclick="toggleArchives()">Show Archives</button>
                 </div>
                 
@@ -79,21 +79,21 @@
             </div>
 
             <div id="job-detail-view" class="hidden">
-                <button class="btn btn-outline" style="margin-bottom: 15px;" onclick="goHome()">⬅️ Back to Jobs</button>
+                <button class="btn btn-outline" style="margin-bottom: 15px; color: var(--text); border-color: var(--border-color);" onclick="goHome()">⬅️ Back to Jobs</button>
                 
-                <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 20px; position: relative;">
+                <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 20px; position: relative; border: 1px solid var(--border-color);">
                     <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 10px;">
                         <button class="btn-icon" onclick="openEditJobModal()" title="Edit Job Details">⚙️</button>
                         <button class="btn-icon" onclick="shareCurrentJob()" title="Share Job Link">🔗</button>
                         <button class="btn-icon" onclick="archiveCurrentJob()" title="Archive Job">📦</button>
                     </div>
                     <div id="current-job-badges" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px; padding-right: 90px;"></div>
-                    <h2 id="current-job-title" style="margin-top: 0; margin-bottom: 10px; padding-right: 90px;">Job Title</h2>
+                    <h2 id="current-job-title" style="margin-top: 0; margin-bottom: 10px; padding-right: 90px; color: var(--text);">Job Title</h2>
                     <div id="current-job-calendar-action"></div>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0;">Task Checklist</h3>
+                    <h3 style="margin: 0; color: var(--text);">Task Checklist</h3>
                     <label style="font-size: 14px; color: var(--gray); display: flex; align-items: center; gap: 5px;">
                         <input type="checkbox" id="hide-completed-tasks-toggle" onchange="renderTasks()"> Hide Done
                     </label>
@@ -113,13 +113,12 @@
                 <div id="shared-tasks-container"></div>
                 <div style="text-align: center; margin-top: 30px;">
                     <p style="color: var(--gray); font-size: 14px;">Powered by TaskGrid</p>
-                    <button class="btn btn-outline" onclick="window.location.href=window.location.pathname">Create Your Own Account</button>
+                    <button class="btn btn-outline" style="color: var(--text); border-color: var(--border-color);" onclick="window.location.href=window.location.pathname">Create Your Own Account</button>
                 </div>
             </div>
 
         </main>
-
-        <footer id="app-footer" class="hidden" style="position: fixed; bottom: 0; width: 100%; background: var(--header-bg); padding: 10px; display: flex; justify-content: space-around; border-top: 1px solid var(--border-color);">
+        <footer id="app-footer" class="hidden" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #1a1a1a; padding: 10px; display: flex; justify-content: space-around; border-top: 1px solid #333; z-index: 1000;">
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="goHome()"><span>🏠</span>Home</button>
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openTeamModal()"><span>👷</span>Team</button>
             <button class="btn-icon" style="color: white; display: flex; flex-direction: column; align-items: center; font-size: 12px;" onclick="openPrintModal()"><span>🖨️</span>Print</button>
@@ -127,15 +126,15 @@
         </footer>
     </div> <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Settings</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Settings</h2>
             <div style="text-align: center; margin-bottom: 20px;">
                 <img id="settings-profile-pic" src="" style="width: 64px; height: 64px; border-radius: 50%; margin-bottom: 10px;">
-                <h3 id="settings-user-name" style="margin: 0;">User Name</h3>
+                <h3 id="settings-user-name" style="margin: 0; color: var(--text);">User Name</h3>
                 <p id="settings-user-email" style="color: var(--gray); margin: 5px 0 0 0;">Email</p>
             </div>
             
-            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <strong>Dark Mode</strong>
+            <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);">
+                <strong style="color: var(--text);">Dark Mode</strong>
                 <label class="switch">
                     <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()">
                     <span class="slider round"></span>
@@ -143,18 +142,18 @@
             </div>
 
             <button id="admin-overview-btn" class="btn btn-danger hidden" style="width: 100%; margin-bottom: 10px;" onclick="openAllUsersJobsModal()">👑 God Mode (Admin)</button>
-            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px;" onclick="openChangelogModal()">📢 What's New</button>
-            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px;" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closeSettingsModal()">Close</button>
+            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px; color: var(--text); border-color: var(--border-color);" onclick="openChangelogModal()">📢 What's New</button>
+            <button class="btn btn-outline" style="width: 100%; margin-bottom: 10px; color: var(--text); border-color: var(--border-color);" onclick="openAboutModal()">ℹ️ About TaskGrid</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closeSettingsModal()">Close</button>
         </div>
     </div>
 
     <div id="team-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Manage Crew</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Manage Crew</h2>
             <div style="display:flex; gap:10px; margin-bottom:15px;">
                 <button id="tab-btn-manual" class="btn btn-primary" style="flex:1;" onclick="switchTeamTab('manual')">Manual Add</button>
-                <button id="tab-btn-invite" class="btn btn-outline" style="flex:1;" onclick="switchTeamTab('invite')">Email Invite</button>
+                <button id="tab-btn-invite" class="btn btn-outline" style="flex:1; color: var(--text); border-color: var(--border-color);" onclick="switchTeamTab('invite')">Email Invite</button>
             </div>
             <div id="team-tab-manual">
                 <input type="text" id="new-team-member" placeholder="Subcontractor Name">
@@ -164,7 +163,7 @@
             </div>
             <div id="team-tab-invite" class="hidden">
                 <input type="email" id="invite-team-email" placeholder="Worker's Email Address">
-                <select id="invite-team-role" style="width:100%; margin-bottom:10px; padding:10px; border: 1px solid var(--border-color); border-radius: 6px;">
+                <select id="invite-team-role" style="width:100%; margin-bottom:10px; padding:10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text);">
                     <option value="Worker">Worker (Can only Complete tasks)</option>
                     <option value="Foreman">Foreman (Can Add/Edit tasks)</option>
                 </select>
@@ -172,7 +171,7 @@
                 <p style="font-size:12px; color:var(--gray); margin-top:10px; text-align:center;">They will see this invite when they log in.</p>
             </div>
             <ul id="team-list" style="margin-top: 20px; list-style: none; padding: 0;"></ul>
-            <button class="btn btn-outline" style="width: 100%; margin-top: 15px;" onclick="closeTeamModal()">Close</button>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px; color: var(--text); border-color: var(--border-color);" onclick="closeTeamModal()">Close</button>
         </div>
     </div>
 
@@ -182,28 +181,28 @@
             <div style="background: var(--light-gray); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color);">
                 <h3 style="margin-top:0; margin-bottom: 10px; color: var(--primary);">📢 Broadcast Update</h3>
                 <input type="text" id="admin-changelog-version" placeholder="Version Title (e.g., v3.5 - The Teams Update)">
-                <textarea id="admin-changelog-text" rows="4" placeholder="- Added Team Invites&#10;- Fixed printing bugs" style="margin-bottom: 10px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-family: inherit;"></textarea>
+                <textarea id="admin-changelog-text" rows="4" placeholder="- Added Team Invites&#10;- Fixed printing bugs" style="margin-bottom: 10px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-family: inherit; background: var(--bg-color); color: var(--text);"></textarea>
                 <button class="btn btn-primary" onclick="postNewChangelog()" style="width:100%;">Post to Live Changelog</button>
             </div>
-            <h3 style="margin-bottom: 10px;">User Management</h3>
+            <h3 style="margin-bottom: 10px; color: var(--text);">User Management</h3>
             <div id="all-users-container"></div>
-            <button class="btn btn-outline" style="width: 100%; margin-top: 15px;" onclick="closeAllUsersJobsModal()">Close</button>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px; color: var(--text); border-color: var(--border-color);" onclick="closeAllUsersJobsModal()">Close</button>
         </div>
     </div>
 
     <div id="changelog-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">What's New</h2>
+            <h2 style="margin-top: 0; color: var(--text);">What's New</h2>
             <div id="changelog-container"></div>
-            <button id="load-more-logs-btn" class="btn btn-outline" style="width: 100%; margin-top: 10px; display: none;" onclick="loadMoreChangelogs()">Load More History</button>
+            <button id="load-more-logs-btn" class="btn btn-outline" style="width: 100%; margin-top: 10px; display: none; color: var(--text); border-color: var(--border-color);" onclick="loadMoreChangelogs()">Load More History</button>
             <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="closeChangelogModal()">Close</button>
         </div>
     </div>
 
     <div id="about-modal" class="modal hidden">
         <div class="modal-content" style="text-align: center;">
-            <h2 style="margin-top: 0;">About TaskGrid</h2>
-            <p><strong>Version:</strong> 4.0 (Enterprise Base)</p>
+            <h2 style="margin-top: 0; color: var(--text);">About TaskGrid</h2>
+            <p style="color: var(--text);"><strong>Version:</strong> 4.0 (Enterprise Base)</p>
             <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px; line-height: 1.6;">TaskGrid was built from the ground up for field operators, crews, and teams who need a reliable, lightning-fast way to organize jobs, sync across devices, and print professional checklists.</p>
             <button class="btn btn-primary" style="width: 100%;" onclick="closeAboutModal()">Close</button>
         </div>
@@ -211,111 +210,111 @@
 
     <div id="add-job-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Create New Job</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Create New Job</h2>
             <input type="text" id="add-job-title" placeholder="Job Title (e.g., Smith Residence)">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
-            <select id="add-job-priority" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Priority</label>
+            <select id="add-job-priority" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);">
                 <option value="Normal">Normal</option>
                 <option value="High">High</option>
                 <option value="Low">Low</option>
             </select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Job Lead (Optional)</label>
-            <select id="add-job-assignee" style="margin-bottom: 15px;"></select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Start Date & Time (Optional)</label>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Job Lead (Optional)</label>
+            <select id="add-job-assignee" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Start Date & Time (Optional)</label>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="date" id="add-job-date" style="flex: 2; margin-bottom: 0;">
-                <input type="time" id="add-job-time" style="flex: 1; margin-bottom: 0;">
+                <input type="date" id="add-job-date" style="flex: 2; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
+                <input type="time" id="add-job-time" style="flex: 1; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
             </div>
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveNewJob()">Save Job</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closeAddJobModal()">Cancel</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closeAddJobModal()">Cancel</button>
         </div>
     </div>
 
     <div id="edit-job-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Edit Job Details</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Edit Job Details</h2>
             <input type="text" id="edit-job-title" placeholder="Job Title">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
-            <select id="edit-job-priority" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Priority</label>
+            <select id="edit-job-priority" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);">
                 <option value="Normal">Normal</option>
                 <option value="High">High</option>
                 <option value="Low">Low</option>
             </select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Job Lead</label>
-            <select id="edit-job-assignee" style="margin-bottom: 15px;"></select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Start Date & Time</label>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Job Lead</label>
+            <select id="edit-job-assignee" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Start Date & Time</label>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="date" id="edit-job-date" style="flex: 2; margin-bottom: 0;">
-                <input type="time" id="edit-job-time" style="flex: 1; margin-bottom: 0;">
+                <input type="date" id="edit-job-date" style="flex: 2; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
+                <input type="time" id="edit-job-time" style="flex: 1; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
             </div>
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveEditedJob()">Update Details</button>
             <button class="btn btn-danger" style="width: 100%; margin-bottom: 10px;" onclick="deleteCurrentJob()">🗑️ Delete Job</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closeEditJobModal()">Cancel</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closeEditJobModal()">Cancel</button>
         </div>
     </div>
 
     <div id="add-task-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Add Task</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Add Task</h2>
             <input type="text" id="new-task-title" placeholder="Task Name (e.g., Master Bath Rough-in)">
-            <textarea id="new-task-desc" placeholder="Details/Instructions (Optional)" rows="2"></textarea>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
-            <select id="new-task-priority" style="margin-bottom: 15px;">
+            <textarea id="new-task-desc" placeholder="Details/Instructions (Optional)" rows="2" style="background: var(--bg-color); color: var(--text);"></textarea>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Priority</label>
+            <select id="new-task-priority" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);">
                 <option value="Normal">Normal</option>
                 <option value="High">High</option>
                 <option value="Low">Low</option>
             </select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Assigned To</label>
-            <select id="new-task-assignee" style="margin-bottom: 15px;"></select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due Date & Time (Optional)</label>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Assigned To</label>
+            <select id="new-task-assignee" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Due Date & Time (Optional)</label>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="date" id="new-task-date" style="flex: 2; margin-bottom: 0;">
-                <input type="time" id="new-task-time" style="flex: 1; margin-bottom: 0;">
+                <input type="date" id="new-task-date" style="flex: 2; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
+                <input type="time" id="new-task-time" style="flex: 1; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
             </div>
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="addTask()">Save Task</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closeAddTaskModal()">Cancel</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closeAddTaskModal()">Cancel</button>
         </div>
     </div>
 
     <div id="edit-task-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 style="margin-top: 0;">Edit Task</h2>
+            <h2 style="margin-top: 0; color: var(--text);">Edit Task</h2>
             <input type="text" id="edit-task-title" placeholder="Task Name">
-            <textarea id="edit-task-desc" placeholder="Details/Instructions" rows="2"></textarea>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Priority</label>
-            <select id="edit-task-priority" style="margin-bottom: 15px;">
+            <textarea id="edit-task-desc" placeholder="Details/Instructions" rows="2" style="background: var(--bg-color); color: var(--text);"></textarea>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Priority</label>
+            <select id="edit-task-priority" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);">
                 <option value="Normal">Normal</option>
                 <option value="High">High</option>
                 <option value="Low">Low</option>
             </select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Assigned To</label>
-            <select id="edit-task-assignee" style="margin-bottom: 15px;"></select>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due Date & Time</label>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Assigned To</label>
+            <select id="edit-task-assignee" style="margin-bottom: 15px; background: var(--bg-color); color: var(--text);"></select>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: var(--text);">Due Date & Time</label>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="date" id="edit-task-date" style="flex: 2; margin-bottom: 0;">
-                <input type="time" id="edit-task-time" style="flex: 1; margin-bottom: 0;">
+                <input type="date" id="edit-task-date" style="flex: 2; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
+                <input type="time" id="edit-task-time" style="flex: 1; margin-bottom: 0; background: var(--bg-color); color: var(--text);">
             </div>
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveEditedTask()">Update Task</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closeEditTaskModal()">Cancel</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closeEditTaskModal()">Cancel</button>
         </div>
     </div>
 
     <div id="print-modal" class="modal hidden">
         <div class="modal-content">
-            <h2 id="print-modal-title" style="margin-top: 0;">Print Formatting</h2>
+            <h2 id="print-modal-title" style="margin-top: 0; color: var(--text);">Print Formatting</h2>
             <p style="color: var(--gray); font-size: 14px; margin-bottom: 15px;">Select the items you want to appear on the printed sheet.</p>
             
-            <label id="print-archive-label" style="display: flex; align-items: center; gap: 10px; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-weight: bold;">
+            <label id="print-archive-label" style="display: flex; align-items: center; gap: 10px; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-weight: bold; border: 1px solid var(--border-color); color: var(--text);">
                 <input type="checkbox" id="print-archive-toggle" onchange="openPrintModal()"> Include Archived Jobs
             </label>
             
-            <div id="print-item-selection" style="max-height: 250px; overflow-y: auto; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+            <div id="print-item-selection" style="max-height: 250px; overflow-y: auto; background: var(--light-gray); padding: 10px; border-radius: 6px; margin-bottom: 20px; border: 1px solid var(--border-color); color: var(--text);">
                 </div>
             
             <div style="display: none;" id="print-preview-area"></div>
             
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px; font-size: 16px; padding: 12px;" onclick="executePrint()">🖨️ Create Print Sheet</button>
-            <button class="btn btn-outline" style="width: 100%;" onclick="closePrintModal()">Cancel</button>
+            <button class="btn btn-outline" style="width: 100%; color: var(--text); border-color: var(--border-color);" onclick="closePrintModal()">Cancel</button>
         </div>
     </div>
 

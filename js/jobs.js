@@ -5,6 +5,7 @@ import { populateDropdowns, getAssigneeText } from './team.js';
 import { doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { db } from './firebase.js';
 
+// --- NAVIGATION ---
 export function goHome() { 
     state.currentJobId = null; 
     document.getElementById('home-view').classList.remove('hidden'); 
@@ -20,6 +21,7 @@ export function viewJob(jobId) {
     renderTasks(); 
 }
 
+// --- VIEW CONTROLS ---
 export function toggleArchives() { 
     state.viewingArchives = !state.viewingArchives; 
     const btn = document.getElementById('toggle-archive-btn'); 
@@ -29,27 +31,33 @@ export function toggleArchives() {
     renderJobs(); 
 }
 
+// --- RENDERING ---
 export function renderJobs() {
     const container = document.getElementById('jobs-container'); 
+    if (!container) return;
     container.innerHTML = '';
     
+    // Filter based on Archive state
     const displayJobs = state.jobs.filter(j => state.viewingArchives ? j.isArchived : !j.isArchived);
     
     if(displayJobs.length === 0) { 
-        container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:20px; padding: 20px;">${state.viewingArchives ? "No archived jobs." : "No active jobs."}</p>`; 
+        container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:40px; padding: 20px;">${state.viewingArchives ? "No archived jobs." : "No active jobs."}</p>`; 
         return; 
     }
     
     displayJobs.forEach((job) => {
+        // Calculate Progress Stats
         const total = job.tasks ? job.tasks.length : 0; 
         const completed = job.tasks ? job.tasks.filter(t => t.status === 'Complete').length : 0; 
         const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
         
+        // Dynamic Bar Color Logic
         let barColor = 'var(--danger)'; 
         if (percent === 100) barColor = 'var(--success)'; 
         else if (percent >= 50) barColor = 'var(--warning)'; 
         if (total === 0) barColor = 'var(--gray)';
         
+        // Generate Badges for the card
         let badges = ''; 
         if(job.priority === 'High') badges += `<span class="badge badge-High">High</span> `; 
         if(job.priority === 'Low') badges += `<span class="badge badge-Low">Low</span> `; 
@@ -82,13 +90,13 @@ export function renderJobs() {
         container.appendChild(card);
     });
     
+    // Sortable initialization
     if (state.jobSortable) state.jobSortable.destroy();
-    
     state.jobSortable = Sortable.create(container, { 
         handle: '.drag-handle', 
         animation: 150, 
         ghostClass: 'sortable-ghost', 
-        onEnd: async function (evt) { 
+        onEnd: async function () { 
             const items = container.querySelectorAll('.card'); 
             let newOrderIds = Array.from(items).map(el => parseInt(el.dataset.id)); 
             const visibleJobs = state.jobs.filter(j => state.viewingArchives ? j.isArchived : !j.isArchived); 
@@ -101,7 +109,7 @@ export function renderJobs() {
     });
 }
 
-// Modal actions
+// --- MODAL & DATA ACTIONS ---
 export function openAddJobModal() { 
     populateDropdowns(); 
     document.getElementById('add-job-title').value = ''; 
@@ -144,6 +152,7 @@ export async function saveNewJob() {
 export function openEditJobModal() { 
     populateDropdowns(); 
     const job = state.jobs.find(j => j.id === state.currentJobId); 
+    if(!job) return;
     document.getElementById('edit-job-title').value = job.title; 
     document.getElementById('edit-job-priority').value = job.priority || 'Normal'; 
     document.getElementById('edit-job-assignee').value = job.assignedTo || ''; 
@@ -170,7 +179,6 @@ export async function saveEditedJob() {
     await saveData(); 
 }
 
-// Data Actions
 export async function deleteJobFromHome(jobId) { 
     if(confirm("PERMANENTLY delete this job?")) { 
         const job = state.jobs.find(j => j.id === jobId); 

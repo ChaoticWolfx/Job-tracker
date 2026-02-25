@@ -15,13 +15,14 @@ export function openPrintModal() {
     if (isJobView) {
         const job = state.jobs.find(j => j.id === state.currentJobId);
         if(!job.tasks || job.tasks.length === 0) {
-            container.innerHTML = '<p>No tasks found in this job.</p>';
+            container.innerHTML = '<p style="color: var(--gray); text-align: center;">No tasks found in this job.</p>';
         } else {
             job.tasks.forEach(task => {
+                // FIXED: Added flexbox layout and forced checkbox width to override global CSS
                 container.innerHTML += `
-                    <label style="display:block; margin-bottom:10px; color: var(--text);">
-                        <input type="checkbox" class="print-item-cb" value="${task.id}" checked onchange="generatePrintPreview()"> 
-                        ${task.title}
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; cursor: pointer; color: var(--text);">
+                        <input type="checkbox" class="print-item-cb" value="${task.id}" checked onchange="generatePrintPreview()" style="width: 18px; height: 18px; margin: 0; flex-shrink: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">${task.title}</span>
                     </label>`;
             });
         }
@@ -30,13 +31,14 @@ export function openPrintModal() {
         const filteredJobs = state.jobs.filter(job => includeArchives || !job.isArchived);
         
         if(filteredJobs.length === 0) {
-            container.innerHTML = '<p>No jobs to list.</p>';
+            container.innerHTML = '<p style="color: var(--gray); text-align: center;">No jobs to list.</p>';
         } else {
             filteredJobs.forEach(job => {
+                // FIXED: Added flexbox layout and forced checkbox width to override global CSS
                 container.innerHTML += `
-                    <label style="display:block; margin-bottom:10px; color: var(--text);">
-                        <input type="checkbox" class="print-item-cb" value="${job.id}" checked onchange="generatePrintPreview()"> 
-                        ${job.title || 'Untitled'} ${job.isArchived ? '(Archived)' : ''}
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; cursor: pointer; color: var(--text);">
+                        <input type="checkbox" class="print-item-cb" value="${job.id}" checked onchange="generatePrintPreview()" style="width: 18px; height: 18px; margin: 0; flex-shrink: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">${job.title || 'Untitled'} ${job.isArchived ? '<span style="color: var(--danger); font-size: 12px; margin-left: 5px;">(Archived)</span>' : ''}</span>
                     </label>`;
             });
         }
@@ -155,7 +157,6 @@ export function executePrint() {
     printArea.classList.remove('hidden');
     printArea.style.display = 'block';
     
-    // Wrapped the button in a div with the no-print-btn class
     printArea.innerHTML = `
         <div class="no-print-btn" style="padding: 15px; background: var(--bg-color); text-align: center;">
             <button class="btn btn-primary" onclick="restoreAppAfterPrint()">⬅️ Return to App</button>

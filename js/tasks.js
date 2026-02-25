@@ -2,15 +2,21 @@ import { state } from './state.js';
 import { saveData } from './api.js';
 import { populateDropdowns, getAssigneeText } from './team.js';
 
+// --- RENDERING ---
 export function renderTasks() {
     const container = document.getElementById('tasks-container'); 
+    if (!container) return;
     container.innerHTML = '';
     
     const job = state.jobs.find(j => j.id === state.currentJobId); 
+    if (!job) return;
+
     const hideCompleted = document.getElementById('hide-completed-tasks-toggle').checked;
     
+    // Update the Job Detail Header info
     document.getElementById('current-job-title').innerText = job.title || 'Untitled';
     
+    // Calendar Sync Logic
     const calAction = document.getElementById('current-job-calendar-action'); 
     if (job.startDate) { 
         calAction.innerHTML = `<button class="btn-outline btn-small" style="color:var(--primary); border-color:var(--primary);" onclick="pushSavedJobToCalendar()">📅 Sync Job to Calendar</button>`; 
@@ -18,6 +24,7 @@ export function renderTasks() {
         calAction.innerHTML = ''; 
     }
     
+    // Build Header Badges
     let topBadges = ''; 
     if(job.priority === 'High') topBadges += `<span class="badge badge-High">High Priority</span> `; 
     if(job.priority === 'Low') topBadges += `<span class="badge badge-Low">Low Priority</span> `; 
@@ -26,12 +33,13 @@ export function renderTasks() {
     
     document.getElementById('current-job-badges').innerHTML = topBadges;
     
+    // Task Filtering Logic
     if (!job.tasks) job.tasks = []; 
     let displayTasks = job.tasks; 
     if (hideCompleted) displayTasks = displayTasks.filter(t => t.status !== 'Complete');
     
     if(displayTasks.length === 0) { 
-        container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:20px; padding:20px;">No tasks visible.</p>`; 
+        container.innerHTML = `<p style="text-align:center; color:var(--gray); margin-top:40px; padding:20px;">No tasks visible.</p>`; 
         return; 
     }
     
@@ -90,16 +98,17 @@ export function renderTasks() {
         container.appendChild(taskEl);
     });
     
+    // Task Sortable logic
     if (state.taskSortable) state.taskSortable.destroy();
-    
     state.taskSortable = Sortable.create(container, { 
         handle: '.drag-handle', 
         animation: 150, 
         ghostClass: 'sortable-ghost', 
-        onEnd: async function(evt) { 
+        onEnd: async function() { 
             const jobIndex = state.jobs.findIndex(j => j.id === state.currentJobId); 
             const items = container.querySelectorAll('.task-row'); 
             let newOrderIds = Array.from(items).map(el => parseInt(el.dataset.id)); 
+            
             const visibleTasks = state.jobs[jobIndex].tasks.filter(t => hideCompleted ? t.status !== 'Complete' : true); 
             const hiddenTasks = state.jobs[jobIndex].tasks.filter(t => hideCompleted ? t.status === 'Complete' : false); 
             
@@ -110,7 +119,7 @@ export function renderTasks() {
     });
 }
 
-// Modal Actions
+// --- MODAL & DATA ACTIONS ---
 export function openAddTaskModal() { 
     populateDropdowns(); 
     document.getElementById('new-task-title').value = ''; 
@@ -185,13 +194,11 @@ export async function saveEditedTask() {
     await saveData(); 
 }
 
-// Data actions
 export async function updateTaskStatus(taskId, newStatus) { 
     const jobIndex = state.jobs.findIndex(j => j.id === state.currentJobId); 
     const taskIndex = state.jobs[jobIndex].tasks.findIndex(t => t.id === taskId); 
     state.jobs[jobIndex].tasks[taskIndex].status = newStatus; 
     
-    // Auto-sort completed to bottom
     if (newStatus === 'Complete') { 
         const completedTask = state.jobs[jobIndex].tasks.splice(taskIndex, 1)[0]; 
         state.jobs[jobIndex].tasks.push(completedTask); 
@@ -217,7 +224,7 @@ export async function deleteTask(taskId) {
     } 
 }
 
-// Calendar integration
+// --- CALENDAR INTEGRATION ---
 export function createCalendarLink(title, startDate, startTime, description) { 
     if (!startDate) return alert("Select a Date first."); 
     let startDateTime = '', endDateTime = ''; 

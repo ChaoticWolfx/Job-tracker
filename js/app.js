@@ -2,7 +2,8 @@ window.onerror = function(msg, url, line) { alert("Code Crash: " + msg + " (Line
 
 import { state } from './state.js';
 import { db } from './firebase.js';
-import { doc, getDoc, collection, addDoc, getDocs, query, orderBy, startAfter, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { saveData } from './api.js';
+import { doc, getDoc, collection, addDoc, getDocs, query, orderBy, startAfter, limit, setDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 import { toggleAuthMode, handleEmailAuth, loginWithGoogle, logout, initAuthListener } from './auth.js';
 import { loadThemePreference, toggleDarkMode, openAboutModal, closeAboutModal, openSettingsModal, closeSettingsModal, openChangelogModal, closeChangelogModal, executePrint, closePrintModal, restoreAppAfterPrint } from './ui.js';
@@ -84,6 +85,140 @@ function printSharedJob() {
     
     printArea.innerHTML = `<button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="margin-bottom: 25px;">⬅️ Return to App</button><div style="color:black;"><h2>${state.sharedJobData.title || 'Untitled'} - Site Checklist</h2><p>Created by: ${state.sharedJobData.owner || 'Unknown'}</p><hr>${tasksHTML}</div>`; 
     setTimeout(() => { window.print(); }, 500); 
+}
+
+// --- ADMIN & OVERSIGHT LOGIC ---
+async function banUser(uid, userName) { 
+    if(!confirm(`Ban ${userName}?`)) return; 
+    await setDoc(doc(db, "banned_users", uid), { bannedAt: Date.now(), name: userName }); 
+    alert(`Banned.`); 
+    openAllUsersJobsModal(); 
+}
+
+async function unbanUser(uid, userName) { 
+    if(!confirm(`Unban ${userName}?`)) return; 
+    await deleteDoc(doc(db, "banned_users", uid)); 
+    alert(`Unbanned.`); 
+    openAllUsersJobsModal(); 
+}
+
+async function deleteUserData(uid, userName) { 
+    if(!confirm(`Wipe data for ${userName}?`)) return; 
+    
+    const snapJobs = await getDocs(query(collection(db, "jobs"), where("ownerUid", "==", uid))); 
+    snapJobs.forEach(async (d) => await deleteDoc(doc(db, "jobs", d.id))); 
+    
+    const snapTeam = await getDocs(query(collection(db, "team"), where("ownerUid", "==", uid))); 
+    snapTeam.forEach(async (d) => await deleteDoc(doc(db, "team", d.id))); 
+    
+    alert(`Wiped.`); 
+    openAllUsersJobsModal(); 
+}
+
+async function openAllUsersJobsModal() { 
+    const container = document.getElementById('all-users-container'); 
+    container.innerHTML = '<p>Fetching...</p>'; 
+    document.getElementById('all-users-modal').classList.remove('hidden'); 
+    
+    try { 
+        const bannedSnap = await getDocs(collection(db, "banned_users")); 
+        let bannedUids = []; 
+        bannedSnap.forEach(doc => bannedUids.push(doc.id)); 
+        
+        const usersSnap = await getDocs(collection(db, "users")); 
+        let allUsers = []; 
+        usersSnap.forEach(doc => allUsers.push(doc.data())); 
+        
+        const jobsSnap = await getDocs(collection(db, "jobs")); 
+        let jobsByUid = {}; 
+        state.adminViewJobs = []; 
+        
+        jobsSnap.forEach((doc) => { 
+            const data = doc.data(); 
+            data.firebaseId = doc.id; 
+            state.adminViewJobs.push(data); 
+            if(data.ownerUid) { 
+                if(!jobsByUid[data.ownerUid]) jobsByUid[data.ownerUid] = []; 
+                jobsByUid[data.ownerUid].push(data); 
+            } 
+        }); 
+        
+        container.innerHTML = ''; 
+        if (allUsers.length === 0) return container.innerHTML = '<p>No users.</p>'; 
+        
+        allUsers.forEach((userData) => { 
+            const userName = userData.name || "Unknown"; 
+            const userUid = userData.uid; 
+            const activeJobs = (jobsByUid[userUid] || []).filter(j => !j.isArchived); 
+            
+            const banBtn = bannedUids.includes(userUid) ? `<button class="btn-success btn-small" onclick="unbanUser('${userUid}', '${userName}')">Unban</button>` : `<button class="btn-warning btn-small" onclick="banUser('${userUid}', '${userName}')">Ban</button>`; 
+            
+            const userDiv = document.createElement('div'); 
+            userDiv.style.marginBottom = '15px'; 
+            userDiv.style.border = '1px solid var(--border-color)'; 
+            userDiv.style.borderRadius = '8px'; 
+            userDiv.style.overflow = 'hidden'; 
+            
+            const userHeader = document.createElement('div'); 
+            userHeader.style.background = 'var(--light-gray)'; 
+            userHeader.style.padding = '12px 15px'; 
+            userHeader.innerHTML = `
+                <div style="display:flex; justify-content:space-between; cursor:pointer;" id="toggle-${userUid}">
+                    <div style="display:flex; gap:10px;">
+                        <img src="${userData.photoURL}" style="width:32px; border-radius:50%;">
+                        <div>
+                            <strong>${userName}</strong><br>
+                            <span style="font-size:12px;">${userData.email}</span>
+                        </div>
+                    </div>
+                    <span>${activeJobs.length} Active ▼</span>
+                </div>
+                <div style="display:flex; gap:5px; justify-content:flex-end; padding-top:5px; border-top:1px solid var(--border-color);">
+                    ${banBtn}
+                    <button class="btn-danger btn-small" onclick="deleteUserData('${userUid}', '${userName}')">Wipe</button>
+                </div>
+            `; 
+            
+            const listCont = document.createElement('div'); 
+            listCont.style.display = 'none'; 
+            activeJobs.forEach(job => { 
+                const row = document.createElement('div'); 
+                row.style.padding = '10px'; 
+                row.style.borderBottom = '1px solid var(--border-color)'; 
+                row.innerHTML = `<strong>${job.title}</strong> <button class="btn-primary btn-small" style="float:right;" onclick="cloneJob('${job.firebaseId}')">📥 Import</button>`; 
+                listCont.appendChild(row); 
+            }); 
+            
+            userHeader.querySelector(`#toggle-${userUid}`).onclick = () => listCont.style.display = listCont.style.display === 'none' ? 'block' : 'none'; 
+            userDiv.appendChild(userHeader); 
+            userDiv.appendChild(listCont); 
+            container.appendChild(userDiv); 
+        }); 
+    } catch (e) { container.innerHTML = `<p>Error: ${e.message}</p>`; } 
+}
+
+function closeAllUsersJobsModal() { 
+    document.getElementById('all-users-modal').classList.add('hidden'); 
+}
+
+async function cloneJob(firebaseId) { 
+    const originalJob = state.adminViewJobs.find(j => j.firebaseId === firebaseId); 
+    if(!originalJob || !confirm(`Import "${originalJob.title}"?`)) return; 
+    
+    const newJob = JSON.parse(JSON.stringify(originalJob)); 
+    newJob.id = Date.now(); 
+    newJob.firebaseId = newJob.id.toString(); 
+    newJob.owner = state.currentUserName; 
+    newJob.ownerUid = state.currentUserUid; 
+    newJob.title += " (Imported)"; 
+    newJob.isShared = false; 
+    
+    if(newJob.tasks) newJob.tasks.forEach((t, i) => t.id = Date.now() + i + 1); 
+    
+    state.jobs.push(newJob); 
+    alert(`Imported!`); 
+    renderJobs(); 
+    await saveData(); 
 }
 
 // --- CHANGELOG SYSTEM ---
@@ -216,3 +351,9 @@ window.restoreAppAfterPrint = restoreAppAfterPrint;
 // Admin & Updates
 window.postNewChangelog = postNewChangelog; 
 window.loadMoreChangelogs = loadMoreChangelogs;
+window.openAllUsersJobsModal = openAllUsersJobsModal;
+window.closeAllUsersJobsModal = closeAllUsersJobsModal;
+window.banUser = banUser;
+window.unbanUser = unbanUser;
+window.deleteUserData = deleteUserData;
+window.cloneJob = cloneJob;

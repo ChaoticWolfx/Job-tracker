@@ -1,6 +1,8 @@
 import { state } from './state.js';
 
-// --- THEME ---
+/* =========================================
+   THEME MANAGEMENT (Dark / Light Mode)
+========================================= */
 export function loadThemePreference() { 
     const isDark = localStorage.getItem('jobTrackerDarkMode') === 'true'; 
     if (isDark) { 
@@ -21,44 +23,47 @@ export function toggleDarkMode() {
     } 
 }
 
-// --- BASIC MODALS ---
-export function openAboutModal() { document.getElementById('about-modal').classList.remove('hidden'); }
-export function closeAboutModal() { document.getElementById('about-modal').classList.add('hidden'); }
-export function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
-export function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
-export function openChangelogModal() { document.getElementById('changelog-modal').classList.remove('hidden'); }
-export function closeChangelogModal() { document.getElementById('changelog-modal').classList.add('hidden'); }
-
-// --- PRINTING UTILITIES ---
-export function restoreAppAfterPrint() { 
-    const printArea = document.getElementById('real-print-area'); 
-    printArea.classList.add('hidden'); 
-    printArea.style.display = 'none'; 
-    printArea.innerHTML = ''; 
-    document.getElementById('main-app-wrapper').style.display = 'block'; 
-    document.querySelectorAll('.modal').forEach(m => m.style.display = ''); 
+/* =========================================
+   MODAL CONTROLS
+========================================= */
+// Settings Modal
+export function openSettingsModal() { 
+    document.getElementById('settings-modal').classList.remove('hidden'); 
+}
+export function closeSettingsModal() { 
+    document.getElementById('settings-modal').classList.add('hidden'); 
 }
 
-export function executePrint() { 
-    const previewHTML = document.getElementById('print-preview-area').innerHTML; 
-    if (!previewHTML) return alert("Nothing to print!"); 
-    
-    const printArea = document.getElementById('real-print-area'); 
-    closePrintModal(); 
-    
-    document.getElementById('main-app-wrapper').style.display = 'none'; 
-    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); 
-    
-    printArea.classList.remove('hidden'); 
-    printArea.style.display = 'block'; 
-    printArea.style.background = 'white'; 
-    printArea.style.color = 'black'; 
-    
-    printArea.innerHTML = `<button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="margin-bottom: 25px;">⬅️ Return to App</button>${previewHTML}`; 
-    
-    setTimeout(() => { window.print(); }, 500); 
+// About Modal
+export function openAboutModal() { 
+    document.getElementById('about-modal').classList.remove('hidden'); 
+}
+export function closeAboutModal() { 
+    document.getElementById('about-modal').classList.add('hidden'); 
 }
 
-export function closePrintModal() { 
-    document.getElementById('print-modal').classList.add('hidden'); 
+// Updates/Changelog Modal
+export function openChangelogModal() { 
+    document.getElementById('changelog-modal').classList.remove('hidden'); 
+    // Trigger the data load (logic is in app.js)
+    if (window.loadMoreChangelogs) window.loadMoreChangelogs(true);
 }
+export function closeChangelogModal() { 
+    document.getElementById('changelog-modal').classList.add('hidden'); 
+}
+
+/* =========================================
+   UI HELPERS
+========================================= */
+export function showElement(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('hidden');
+}
+
+export function hideElement(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+}
+
+// Note: Print UI functions (executePrint, closePrintModal, etc.) 
+// have been moved to js/print.js for better organization.

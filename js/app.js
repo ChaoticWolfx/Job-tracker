@@ -45,7 +45,7 @@ async function loadSharedJob(firebaseDocId) {
             container.innerHTML = '';
             
             if(!state.sharedJobData.tasks || state.sharedJobData.tasks.length === 0) { 
-                container.innerHTML = '<p style="color:var(--gray);">No tasks found.</p>'; 
+                container.innerHTML = '<p style="color:var(--gray); text-align:center;">No tasks found.</p>'; 
             } else {
                 state.sharedJobData.tasks.forEach(task => {
                     let isComplete = task.status === 'Complete'; 
@@ -82,18 +82,52 @@ function printSharedJob() {
     printArea.style.background = 'white'; 
     printArea.style.color = 'black'; 
     
-    let tasksHTML = '<ul>'; 
-    if(state.sharedJobData.tasks) { 
+    const dateStr = new Date().toLocaleDateString();
+    
+    let html = `<style>
+        @media print {
+            .no-print-btn { display: none !important; }
+        }
+    </style>`;
+    
+    html += `<div class="no-print-btn" style="padding: 15px; background: var(--bg-color); text-align: center;">
+                <button class="btn btn-primary" onclick="restoreAppAfterPrint()">⬅️ Return to App</button>
+             </div>
+             <div style="color:black; font-family:sans-serif; background:white; padding:10px;">
+                <h2>${state.sharedJobData.title || 'Untitled'} - Site Checklist</h2>
+                <p style="color: #666; font-size: 14px;">Created by: ${state.sharedJobData.owner || 'Unknown'} | Printed: ${dateStr}</p>
+                <hr style="border: 1px solid #ccc; margin-bottom: 20px;">`;
+    
+    let tasksHTML = '<ul style="list-style:none; padding-left:0;">'; 
+    if(state.sharedJobData.tasks && state.sharedJobData.tasks.length > 0) { 
         state.sharedJobData.tasks.forEach(task => { 
             let isComplete = task.status === 'Complete'; 
-            let statusIcon = isComplete ? `✅` : `<div style="display:inline-block; width:18px; height:18px; border:2px solid black;"></div>`; 
-            let titleStyle = isComplete ? 'text-decoration: line-through;' : ''; 
-            tasksHTML += `<li style="margin-bottom: 20px;"><div>${statusIcon} <span style="${titleStyle}">${task.title}</span> [${task.status}]</div>${task.desc ? `<div>Desc: ${task.desc}</div>` : ''}</li>`; 
+            let statusIcon = isComplete 
+                ? `<span style="font-size: 18px; margin-right: 10px;">✅</span>` 
+                : `<div style="display:inline-block; width:16px; height:16px; border:2px solid black; margin-right: 10px; vertical-align:middle;"></div>`;
+            
+            let textStyle = isComplete ? 'text-decoration: line-through; color: #666;' : 'color: black; font-weight: bold;'; 
+            
+            tasksHTML += `
+                <li style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom:12px;">
+                    <div style="font-size:16px; display: flex; align-items: center;">
+                        ${statusIcon} <span style="${textStyle}">${task.title}</span>
+                    </div>
+                    <div style="margin-left:32px; font-size:14px; color:#444; margin-top: 6px;">
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            ${task.priority && task.priority !== 'Normal' ? `<span><strong>Priority:</strong> ${task.priority}</span>` : ''}
+                            ${task.dueDate ? `<span><strong>Due:</strong> ${task.dueDate} ${task.dueTime || ''}</span>` : ''}
+                        </div>
+                        ${task.desc ? `<div style="margin-top:6px; font-style: italic; color: #555;">📝 ${task.desc}</div>` : ''}
+                    </div>
+                </li>`; 
         }); 
-    } 
-    tasksHTML += '</ul>'; 
+    } else {
+        tasksHTML += '<p>No tasks found.</p>';
+    }
+    tasksHTML += '</ul></div>'; 
     
-    printArea.innerHTML = `<button class="btn btn-primary no-print-btn" onclick="restoreAppAfterPrint()" style="margin-bottom: 25px;">⬅️ Return to App</button><div style="color:black;"><h2>${state.sharedJobData.title || 'Untitled'} - Site Checklist</h2><hr>${tasksHTML}</div>`; 
+    printArea.innerHTML = html + tasksHTML; 
     setTimeout(() => { window.print(); }, 500); 
 }
 
@@ -230,6 +264,8 @@ async function postNewChangelog() {
     try { 
         await addDoc(collection(db, "changelogs"), { version, details: text, timestamp: Date.now() }); 
         alert("Success!"); 
+        document.getElementById('admin-changelog-version').value = '';
+        document.getElementById('admin-changelog-text').value = '';
     } catch(e) { alert("Error: " + e.message); } 
 }
 
@@ -245,9 +281,14 @@ async function loadMoreChangelogs(isInitialLoad = false) {
         const snapshot = await getDocs(logQuery); 
         snapshot.forEach(doc => {
             const data = doc.data();
-            container.innerHTML += `<div style="margin-bottom:15px;"><strong>${data.version}</strong><p>${data.details}</p></div>`;
+            container.innerHTML += `<div style="margin-bottom:15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                                        <h3 style="color:var(--primary); margin:0 0 5px 0;">${data.version}</h3>
+                                        <p style="margin:0; white-space: pre-wrap;">${data.details}</p>
+                                    </div>`;
         });
         state.lastChangelogVisible = snapshot.docs[snapshot.docs.length - 1];
+        if (snapshot.empty) loadBtn.style.display = 'none';
+        else loadBtn.style.display = 'block';
     } catch (e) { console.error(e); } 
 }
 

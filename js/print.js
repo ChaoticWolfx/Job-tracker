@@ -18,7 +18,6 @@ export function openPrintModal() {
             container.innerHTML = '<p style="color: var(--gray); text-align: center;">No tasks found in this job.</p>';
         } else {
             job.tasks.forEach(task => {
-                // FIXED: Added flexbox layout and forced checkbox width to override global CSS
                 container.innerHTML += `
                     <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; cursor: pointer; color: var(--text);">
                         <input type="checkbox" class="print-item-cb" value="${task.id}" checked onchange="generatePrintPreview()" style="width: 18px; height: 18px; margin: 0; flex-shrink: 0; cursor: pointer;"> 
@@ -34,7 +33,6 @@ export function openPrintModal() {
             container.innerHTML = '<p style="color: var(--gray); text-align: center;">No jobs to list.</p>';
         } else {
             filteredJobs.forEach(job => {
-                // FIXED: Added flexbox layout and forced checkbox width to override global CSS
                 container.innerHTML += `
                     <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 8px; cursor: pointer; color: var(--text);">
                         <input type="checkbox" class="print-item-cb" value="${job.id}" checked onchange="generatePrintPreview()" style="width: 18px; height: 18px; margin: 0; flex-shrink: 0; cursor: pointer;"> 
@@ -59,7 +57,6 @@ export function generatePrintPreview() {
     const dateStr = new Date().toLocaleDateString();
     let html = '';
 
-    // Add CSS to hide the "Return to App" button on the physical paper
     html += `<style>
         @media print {
             .no-print-btn { display: none !important; }
@@ -89,14 +86,17 @@ export function generatePrintPreview() {
                 let textStyle = isComplete ? 'text-decoration: line-through; color: #666;' : 'color: black; font-weight: bold;';
 
                 html += `
-                    <li style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom:10px;">
+                    <li style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom:12px;">
                         <div style="font-size:16px; display: flex; align-items: center;">
                             ${statusIcon} <span style="${textStyle}">${task.title}</span>
                         </div>
-                        <div style="margin-left:32px; font-size:14px; color:#444;">
-                            ${task.assignedTo ? `<div>Lead: ${getAssigneeText(task.assignedTo)}</div>` : ''}
-                            ${task.dueDate ? `<div>Due: ${task.dueDate}</div>` : ''}
-                            ${task.desc ? `<div style="margin-top:4px; font-style: italic;">${task.desc}</div>` : ''}
+                        <div style="margin-left:32px; font-size:14px; color:#444; margin-top: 6px;">
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                ${task.assignedTo ? `<span><strong>Lead:</strong> ${getAssigneeText(task.assignedTo)}</span>` : ''}
+                                ${task.priority && task.priority !== 'Normal' ? `<span><strong>Priority:</strong> ${task.priority}</span>` : ''}
+                                ${task.dueDate ? `<span><strong>Due:</strong> ${task.dueDate} ${task.dueTime || ''}</span>` : ''}
+                            </div>
+                            ${task.desc ? `<div style="margin-top:6px; font-style: italic; color: #555;">📝 ${task.desc}</div>` : ''}
                         </div>
                     </li>`;
             });
@@ -128,10 +128,20 @@ export function generatePrintPreview() {
                             ? `<span style="font-size: 16px; margin-right: 8px;">✅</span>` 
                             : `<div style="display:inline-block; width:14px; height:14px; border:2px solid black; margin-right: 8px; vertical-align:middle;"></div>`;
                         
-                        let textStyle = isComplete ? 'text-decoration: line-through; color: #666;' : 'color: black;';
+                        let textStyle = isComplete ? 'text-decoration: line-through; color: #666;' : 'color: black; font-weight: 500;';
 
-                        html += `<li style="margin-bottom: 8px; font-size: 15px; display: flex; align-items: center;">
-                                    ${statusIcon} <span style="${textStyle}">${t.title}</span>
+                        html += `<li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee;">
+                                    <div style="font-size: 15px; display: flex; align-items: center;">
+                                        ${statusIcon} <span style="${textStyle}">${t.title}</span>
+                                    </div>
+                                    <div style="margin-left: 26px; font-size: 13px; color: #555; margin-top: 5px;">
+                                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                            ${t.assignedTo ? `<span><strong>Lead:</strong> ${getAssigneeText(t.assignedTo)}</span>` : ''}
+                                            ${t.priority && t.priority !== 'Normal' ? `<span><strong>Priority:</strong> ${t.priority}</span>` : ''}
+                                            ${t.dueDate ? `<span><strong>Due:</strong> ${t.dueDate} ${t.dueTime || ''}</span>` : ''}
+                                        </div>
+                                        ${t.desc ? `<div style="margin-top: 4px; font-style: italic;">📝 ${t.desc}</div>` : ''}
+                                    </div>
                                  </li>`;
                     });
                     html += `</ul>`;

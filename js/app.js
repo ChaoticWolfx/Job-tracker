@@ -14,17 +14,20 @@ import { renderTasks, openAddTaskModal, closeAddTaskModal, addTask, openEditTask
 import { openTeamModal, closeTeamModal, switchTeamTab, sendTeamInvite, addTeamMember, removeTeamMember, acceptTeamInvite, declineTeamInvite } from './team.js';
 import { openPrintModal, closePrintModal, generatePrintPreview, executePrint, restoreAppAfterPrint } from './print.js';
 
-// --- INITIALIZATION ---
+// --- INITIALIZATION & ROUTING ---
 loadThemePreference();
-initAuthListener();
 
-// --- SHARED JOB VIEW LOGIC (Read-Only Link Access) ---
 const urlParams = new URLSearchParams(window.location.search);
 const sharedJobId = urlParams.get('job');
 
 if (sharedJobId) { 
+    // MODE 1: Viewing a Public Shared Link
     document.getElementById('login-view').classList.add('hidden'); 
+    document.getElementById('app-footer').classList.add('hidden'); // Ensure footer is hidden
     loadSharedJob(sharedJobId); 
+} else {
+    // MODE 2: Normal App Login/Usage
+    initAuthListener();
 }
 
 async function loadSharedJob(firebaseDocId) {
@@ -146,6 +149,8 @@ async function openAllUsersJobsModal() {
         }); 
         
         container.innerHTML = ''; 
+        if (allUsers.length === 0) return container.innerHTML = '<p>No users found.</p>';
+
         allUsers.forEach((userData) => { 
             const userName = userData.name || "Unknown"; 
             const userUid = userData.uid; 
@@ -158,17 +163,65 @@ async function openAllUsersJobsModal() {
             userDiv.style.borderRadius = '8px'; 
             userDiv.style.overflow = 'hidden'; 
             
-            userDiv.innerHTML = `
-                <div style="background:var(--light-gray); padding:12px; display:flex; justify-content:space-between; align-items:center;">
-                    <div><strong>${userName}</strong> (${activeJobs.length} Jobs)</div>
-                    <div style="display:flex; gap:5px;">${banBtn}<button class="btn-danger btn-small" onclick="deleteUserData('${userUid}', '${userName}')">Wipe</button></div>
-                </div>`; 
+            const userHeader = document.createElement('div'); 
+            userHeader.style.background = 'var(--light-gray)'; 
+            userHeader.style.padding = '12px 15px'; 
+            userHeader.innerHTML = `
+                <div style="display:flex; justify-content:space-between; cursor:pointer;" id="toggle-${userUid}">
+                    <div style="display:flex; gap:10px;">
+                        <img src="${userData.photoURL || 'https://via.placeholder.com/32'}" style="width:32px; border-radius:50%;">
+                        <div>
+                            <strong>${userName}</strong><br>
+                            <span style="font-size:12px;">${userData.email}</span>
+                        </div>
+                    </div>
+                    <span>${activeJobs.length} Active ▼</span>
+                </div>
+                <div style="display:flex; gap:5px; justify-content:flex-end; padding-top:5px; border-top:1px solid var(--border-color);">
+                    ${banBtn}
+                    <button class="btn-danger btn-small" onclick="deleteUserData('${userUid}', '${userName}')">Wipe</button>
+                </div>
+            `; 
+            
+            const listCont = document.createElement('div'); 
+            listCont.style.display = 'none'; 
+            activeJobs.forEach(job => { 
+                const row = document.createElement('div'); 
+                row.style.padding = '10px'; 
+                row.style.borderBottom = '1px solid var(--border-color)'; 
+                row.innerHTML = `<strong>${job.title}</strong> <button class="btn-primary btn-small" style="float:right;" onclick="cloneJob('${job.firebaseId}')">📥 Import</button>`; 
+                listCont.appendChild(row); 
+            }); 
+            
+            userHeader.querySelector(`#toggle-${userUid}`).onclick = () => listCont.style.display = listCont.style.display === 'none' ? 'block' : 'none'; 
+            userDiv.appendChild(userHeader); 
+            userDiv.appendChild(listCont); 
             container.appendChild(userDiv); 
         }); 
     } catch (e) { container.innerHTML = `<p>Error: ${e.message}</p>`; } 
 }
 
 function closeAllUsersJobsModal() { document.getElementById('all-users-modal').classList.add('hidden'); }
+
+async function cloneJob(firebaseId) { 
+    const originalJob = state.adminViewJobs.find(j => j.firebaseId === firebaseId); 
+    if(!originalJob || !confirm(`Import "${originalJob.title}"?`)) return; 
+    
+    const newJob = JSON.parse(JSON.stringify(originalJob)); 
+    newJob.id = Date.now(); 
+    newJob.firebaseId = newJob.id.toString(); 
+    newJob.owner = state.currentUserName; 
+    newJob.ownerUid = state.currentUserUid; 
+    newJob.title += " (Imported)"; 
+    newJob.isShared = false; 
+    
+    if(newJob.tasks) newJob.tasks.forEach((t, i) => t.id = Date.now() + i + 1); 
+    
+    state.jobs.push(newJob); 
+    alert(`Imported!`); 
+    renderJobs(); 
+    await saveData(); 
+}
 
 async function postNewChangelog() { 
     const version = document.getElementById('admin-changelog-version').value.trim(); 
@@ -226,4 +279,4 @@ window.addTeamMember = addTeamMember; window.removeTeamMember = removeTeamMember
 window.openPrintModal = openPrintModal; window.closePrintModal = closePrintModal; window.generatePrintPreview = generatePrintPreview; window.executePrint = executePrint; window.restoreAppAfterPrint = restoreAppAfterPrint; window.printSharedJob = printSharedJob;
 
 // Admin
-window.postNewChangelog = postNewChangelog; window.loadMoreChangelogs = loadMoreChangelogs; window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData;
+window.postNewChangelog = postNewChangelog; window.loadMoreChangelogs = loadMoreChangelogs; window.openAllUsersJobsModal = openAllUsersJobsModal; window.closeAllUsersJobsModal = closeAllUsersJobsModal; window.banUser = banUser; window.unbanUser = unbanUser; window.deleteUserData = deleteUserData; window.cloneJob = cloneJob;
